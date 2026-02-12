@@ -1,0 +1,25 @@
+# Secrets
+.env
+.env.local
+.env.production
+
+# Data (backed up via rclone, not git)
+data/
+
+# Vault (synced via Google Drive, not git)
+vault/
+
+# OpenClaw reference (not part of this project)
+openclaw/
+
+# Node
+node_modules/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code sessions (local state)
+.claude/sessions/
+.claude/statsig/
