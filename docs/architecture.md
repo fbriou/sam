@@ -2,20 +2,20 @@
 
 ## Overview
 
-Sam is a personal AI assistant that communicates via Telegram, powered by Claude Code CLI. It's built around 4 pillars inspired by OpenClaw: Memory, Heartbeat, Telegram, and Skills.
+Sam is a personal AI assistant that communicates via Telegram, powered by the Claude Agent SDK. It's built around 4 pillars inspired by OpenClaw: Memory, Heartbeat, Telegram, and Skills.
 
 ## Architecture Diagram
 
 ```
-┌─────────────┐    grammY     ┌──────────────────┐   child_process   ┌──────────────┐
-│  Telegram    │◄────────────►│  Node.js App      │─────────────────►│  Claude Code  │
-│  (you)       │              │  (orchestrator)   │   claude -p       │  CLI (brain)  │
+┌─────────────┐    grammY     ┌──────────────────┐   Agent SDK      ┌──────────────┐
+│  Telegram    │◄────────────►│  Node.js App      │─────────────────►│  Claude       │
+│  (you)       │              │  (orchestrator)   │   query()         │  (brain)      │
 └─────────────┘              │                    │                   │               │
-                              │  - telegram/bot   │                   │  - CLAUDE.md  │
-                              │  - heartbeat/cron │                   │  - skills/    │
-                              │  - security       │                   │  - hooks      │
-                              └────────┬──────────┘                   │  - MCP ──────►│
-                                       │                              └──────────────┘│
+                              │  - telegram/bot   │                   │  - systemPrompt│
+                              │  - heartbeat/cron │                   │  - WebSearch  │
+                              │  - security       │                   │  - MCP ──────►│
+                              └────────┬──────────┘                   └──────────────┘│
+                                       │                                              │
                               ┌────────▼──────────┐                                   │
                               │  SQLite + sqlite-vec│◄─────────────────────────────────┘
                               │  (conversations +   │         MCP tool calls
@@ -37,10 +37,10 @@ Sam is a personal AI assistant that communicates via Telegram, powered by Claude
 1. You send a message on Telegram
 2. grammY bot receives the update
 3. Security middleware checks your Telegram user ID against the allow-list
-4. The orchestrator spawns `claude -p "your message" --output-format json --session-id <uuid>` with `cwd: runtime/` (UUID is deterministically derived from chatId)
-5. Claude Code loads `runtime/CLAUDE.md` automatically (personality, rules)
-6. Claude Code may call MCP tools (`search_memory`) for RAG retrieval
-7. Claude Code returns a JSON response
+4. The orchestrator calls `askClaude()` which uses the Agent SDK `query()` with `runtime/CLAUDE.md` as `systemPrompt`
+5. Claude receives the personality, rules, and response format from the system prompt
+6. Claude may call MCP tools (`search_memory`) for RAG retrieval or `WebSearch` for live info
+7. Claude returns a text response
 8. The orchestrator saves both user message and assistant response to SQLite
 9. The response is converted from markdown to Telegram HTML
 10. If response > 4096 chars, it's chunked into multiple messages
@@ -75,13 +75,13 @@ Bot generates daily summary
 | Directory | Purpose |
 |-----------|---------|
 | `src/` | TypeScript source code |
-| `src/claude/` | Claude Code CLI client wrapper |
+| `src/claude/` | Agent SDK client wrapper |
 | `src/telegram/` | grammY bot, security middleware, formatter |
 | `src/memory/` | Vault reader, embeddings, RAG |
 | `src/mcp/` | Custom MCP server for memory tools |
 | `src/heartbeat/` | Proactive cron runner |
 | `src/db/` | SQLite client and schema |
-| `runtime/` | Claude Code runtime context (CLAUDE.md + .claude/) — cwd for `claude -p` |
+| `runtime/` | Agent SDK runtime context (CLAUDE.md used as systemPrompt) |
 | `vault/` | Obsidian vault (synced via Google Drive) |
 | `docs/` | Project documentation |
 | `scripts/` | Setup and utility scripts |
@@ -89,7 +89,7 @@ Bot generates daily summary
 
 ## Key Design Decisions
 
-- **Claude Code as the brain**: See [ADR-001](decisions/adr-001-claude-code-as-brain.md)
+- **Claude Agent SDK as the brain**: See [ADR-001](decisions/adr-001-claude-code-as-brain.md)
 - **SQLite over PostgreSQL**: Single file, no server, sqlite-vec for vectors, perfect for single-user
 - **Obsidian vault**: Human-readable memory layer, editable from any device via Google Drive
 - **MCP for RAG**: Standard protocol, Claude Code loads it natively

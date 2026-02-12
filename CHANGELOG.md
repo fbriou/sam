@@ -5,9 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-### Local Testing Fix (2026-02-12)
+### Agent SDK Migration + Rename (2026-02-12)
 
-- **Fixed**: `src/telegram/bot.ts` — Session ID must be a valid UUID (Claude Code CLI requirement); derive deterministically from chat ID via MD5 hash
+- **Replaced**: `src/claude/client.ts` — Replaced `claude -p` subprocess with `@anthropic-ai/claude-agent-sdk` `query()` function
+- **Changed**: System prompt loaded directly via `systemPrompt` option (fixes CLAUDE.md hierarchy loading wrong personality)
+- **Changed**: MCP servers configured explicitly via SDK `mcpServers` option (no more `settingSources`)
+- **Added**: `WebSearch` tool — Sam can now search the web for real-time info
+- **Added**: `AskUserQuestion`, `TodoWrite`, `TaskOutput` built-in tools
+- **Simplified**: `src/telegram/bot.ts` — Removed per-chat queue and MD5 session derivation; uses `askClaude()` with session resume
+- **Updated**: `runtime/CLAUDE.md` — Added explicit Telegram formatting rules (no headers, concise, phone-friendly)
+- **Renamed**: Global rename MyClaw → Sam across NixOS, Terraform, GitHub Actions, docs
 
 ### Phase 8 — NixOS Deployment (2026-02-12)
 
