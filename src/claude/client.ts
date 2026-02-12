@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { join } from "path";
 
 export interface ClaudeResult {
   text: string;
@@ -54,7 +55,7 @@ export function spawnClaude(
     }
 
     const proc = spawn("claude", args, {
-      cwd: opts.cwd || process.cwd(),
+      cwd: opts.cwd || join(process.cwd(), "runtime"),
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
     });

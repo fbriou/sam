@@ -33,9 +33,13 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY package.json ./
 
-# Copy Claude Code config (MCP server, settings)
-COPY .claude/ .claude/
+# Copy development CLAUDE.md (for reference)
 COPY CLAUDE.md ./
+
+# Copy runtime Claude Code context (personality, MCP config)
+COPY runtime/CLAUDE.md runtime/CLAUDE.md
+COPY runtime/.claude/settings.json runtime/.claude/settings.json
+RUN ln -s ../../vault/skills runtime/.claude/skills
 
 # Create directories for runtime data
 RUN mkdir -p /app/data /app/vault && \

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "myclaw-memory": {
+      "command": "node",
+      "args": ["../dist/mcp/server.js"],
+      "env": {
+        "VAULT_PATH": "../vault",
+        "DB_PATH": "../data/myclaw.db"
+      }
+    }
+  }
+}

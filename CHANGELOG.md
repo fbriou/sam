@@ -76,3 +76,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Added**: `docs/operations/disaster-recovery.md` — Recovery runbook (VPS is disposable)
 - **Added**: `docs/operations/backup-strategy.md` — SQLite backup, vault sync, monitoring
 - **Added**: `docs/operations/monitoring.md` — Logs, health checks, troubleshooting
+
+### Split CLAUDE.md — Development vs Runtime (2026-02-12)
+
+- **Added**: `runtime/CLAUDE.md` — Bot personality, MCP tools, skills, rules (moved from root)
+- **Added**: `runtime/.claude/settings.json` — MCP server config with `../` prefixed paths
+- **Added**: `runtime/.claude/skills` — Symlink to `../../vault/skills`
+- **Updated**: `CLAUDE.md` (root) — Rewritten as development guide (project structure, conventions, build commands)
+- **Updated**: `src/claude/client.ts` — Default cwd changed to `runtime/` for `claude -p` invocations
+- **Updated**: `Dockerfile` — Copy `runtime/` instead of root `.claude/`
+- **Updated**: `.dockerignore` — Include `runtime/` directory
+- **Updated**: `docs/architecture.md` — Document runtime/ directory and cwd change

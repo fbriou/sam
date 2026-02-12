@@ -9,4 +9,5 @@ openclaw
 *.md
 !CLAUDE.md
 !README.md
+!runtime
 docs
