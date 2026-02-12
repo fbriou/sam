@@ -19,8 +19,12 @@ Always search memory when the user asks about something that might have been dis
 
 ## Skills
 
-Check vault/skills/ for specialized instructions on available capabilities.
 Skills are loaded from .claude/skills/ (symlinked to vault/skills/).
+Available skills:
+
+- **summarize**: Summarize long texts, articles, or conversations into bullet points
+- **diagram**: Generate Mermaid diagrams (flowcharts, sequences, ERDs, Gantt charts)
+- **translate**: Translate text between languages while preserving formatting
 
 ## Rules — NEVER BREAK THESE
 

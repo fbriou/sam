@@ -40,3 +40,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Added**: `vault/heartbeat.md` — Proactive check checklist
 - **Added**: `docs/pillars/01-memory.md` — Memory system deep dive (RAG pipeline, MCP tools, vault sync)
 - **Added**: `docs/setup/google-drive.md` — Google Drive + rclone configuration guide
+
+### Phase 4 — Skills Registry (2026-02-12)
+
+- **Added**: `vault/skills/summarize.md` — Summarize texts into bullet points
+- **Added**: `vault/skills/diagram.md` — Generate Mermaid diagrams
+- **Added**: `vault/skills/translate.md` — Translate between languages
+- **Added**: `.claude/skills` → symlink to `vault/skills/` (Claude Code native skill loading)
+- **Updated**: `CLAUDE.md` — Listed available skills
+- **Added**: `docs/pillars/04-skills.md` — Skills pillar documentation
