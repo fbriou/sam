@@ -1,175 +1,105 @@
-# VPS Deployment (Hetzner)
+# NixOS Deployment (Hetzner Cloud)
 
-## 1. Create a Hetzner VPS
+## Overview
 
-1. Go to [console.hetzner.cloud](https://console.hetzner.cloud/)
-2. Create a new server:
-   - **Type**: CX22 (2 vCPU, 4GB RAM, 40GB disk) — ~4 EUR/month
-   - **OS**: Ubuntu 24.04
-   - **Location**: Falkenstein (EU, cheapest)
-   - **SSH key**: Add your public key
-   - **No extras needed**
+MyClaw runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment is fully automated via GitHub Actions with two modes:
 
-3. Note the IP address once created.
+- **Quick deploy** (~2 min): Update code + NixOS config on existing server
+- **Full deploy** (~15 min): Create server from scratch with OpenTofu + nixos-anywhere
 
-## 2. DNS Setup
+## Infrastructure
 
-Point a domain or subdomain to your VPS:
-```
-myclaw.yourdomain.com → A record → <vps-ip>
-```
+| Component | Tool |
+|-----------|------|
+| Server provisioning | OpenTofu (Hetzner Cloud provider) |
+| OS installation | nixos-anywhere (NixOS 24.11 + disko) |
+| Configuration | Nix flakes (`flake.nix`, `nixos/`) |
+| CI/CD | GitHub Actions (`.github/workflows/deploy.yml`) |
+| Secrets | GitHub Secrets → assembled into `.env` on server |
 
-Caddy will auto-provision a Let's Encrypt TLS certificate.
+## Server Specs
 
-## 3. Run the Setup Script
+- **Type**: CX22 (2 vCPU, 4GB RAM, 40GB disk)
+- **OS**: NixOS 24.11
+- **Location**: Nuremberg, Germany (nbg1)
+- **Cost**: ~€4/month
+- **Firewall**: SSH only (port 22), ICMP
 
-SSH in as root (first and last time):
+## GitHub Secrets Required
+
+| Secret | Description |
+|--------|-------------|
+| `HETZNER_API_TOKEN` | Hetzner Cloud API token |
+| `SSH_PUBLIC_KEY` | Ed25519 public key |
+| `SSH_PRIVATE_KEY` | Ed25519 private key |
+| `ALLOWED_SSH_IP` | Your home IP in CIDR (e.g. 1.2.3.4/32) |
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
+| `TELEGRAM_ALLOWED_IDS` | Comma-separated Telegram user IDs |
+| `TELEGRAM_CHAT_ID` | Chat ID for heartbeat delivery |
+| `WEBHOOK_SECRET` | Random string |
+| `RCLONE_CONFIG` | rclone.conf content (Google Drive remote) |
+
+## First-Time Setup
+
+### 1. Generate SSH key
+
 ```bash
-ssh root@<vps-ip>
-bash <(curl -sL https://raw.githubusercontent.com/fbriou/sam/main/scripts/vps-setup.sh)
+ssh-keygen -t ed25519 -f ~/.ssh/myclaw -C "myclaw-deploy"
 ```
 
-This installs: Docker, Caddy, rclone, UFW, fail2ban. Creates the `deploy` user.
+### 2. Create Hetzner API token
 
-After setup, **root SSH is disabled**. Always connect as:
-```bash
-ssh deploy@<vps-ip>
-```
+Go to [console.hetzner.cloud](https://console.hetzner.cloud/) → API Tokens → Generate.
 
-## 4. Configure rclone (Google Drive)
+### 3. Configure rclone locally
 
-On your Mac first (to get the OAuth token):
 ```bash
 rclone config
 # → New remote → name: "gdrive" → type: Google Drive → follow browser OAuth
 ```
 
-Copy the token from `~/.config/rclone/rclone.conf`.
+Copy the config: `cat ~/.config/rclone/rclone.conf` → save as `RCLONE_CONFIG` secret.
 
-On the VPS:
-```bash
-rclone config
-# → New remote → name: "gdrive" → type: Google Drive → paste token
-```
+### 4. Add all GitHub Secrets
 
-Test:
-```bash
-rclone ls gdrive:myclaw-vault/
-```
+Go to your repo → Settings → Secrets and variables → Actions → add each secret.
 
-## 5. Set Up Vault Sync Cron
+### 5. Run full deploy
 
-Create `/etc/cron.d/myclaw-sync`:
-```cron
-# Pull vault changes (your edits in Obsidian)
-*/5 * * * * deploy rclone sync gdrive:myclaw-vault /opt/myclaw/vault --exclude "memories/**" 2>&1 | logger -t myclaw-sync
-
-# Push memories back to Google Drive
-*/5 * * * * deploy rclone sync /opt/myclaw/vault/memories/ gdrive:myclaw-vault/memories/ 2>&1 | logger -t myclaw-sync
-
-# Backup SQLite DB (hourly)
-0 * * * * deploy rclone copy /opt/myclaw/data/myclaw.db gdrive:myclaw-backups/db/ 2>&1 | logger -t myclaw-backup
-```
-
-## 6. Create the `.env` File
-
-```bash
-nano /opt/myclaw/.env
-```
-
-```env
-ANTHROPIC_API_KEY=sk-ant-api03-...
-TELEGRAM_BOT_TOKEN=7123456:ABC...
-TELEGRAM_ALLOWED_IDS=123456789
-TELEGRAM_CHAT_ID=123456789
-WEBHOOK_SECRET=<openssl rand -hex 16>
-VAULT_PATH=/app/vault
-DB_PATH=/app/data/myclaw.db
-NODE_ENV=production
-ACTIVE_HOURS_START=08:00
-ACTIVE_HOURS_END=22:00
-ACTIVE_HOURS_TZ=Europe/Paris
-HEARTBEAT_INTERVAL_CRON=*/30 * * * *
-```
-
-## 7. Copy Compose Files
-
-```bash
-cd /opt/myclaw
-# Copy these from the repo:
-# - docker-compose.yml
-# - docker-compose.prod.yml
-# - Caddyfile
-```
-
-Or clone the repo:
-```bash
-git clone https://github.com/fbriou/sam.git /opt/myclaw/repo
-cp /opt/myclaw/repo/docker-compose*.yml /opt/myclaw/
-cp /opt/myclaw/repo/Caddyfile /opt/myclaw/
-```
-
-Update the Caddyfile domain:
-```bash
-sed -i 's/{$CADDY_DOMAIN:localhost}/myclaw.yourdomain.com/' /opt/myclaw/Caddyfile
-```
-
-## 8. Deploy
-
-```bash
-cd /opt/myclaw
-docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
-
-## 9. Verify
-
-```bash
-# Check status
-docker compose ps
-
-# View logs
-docker compose logs -f --tail 50
-
-# Send a test message on Telegram
-```
-
-## GitHub Actions (Auto-Deploy)
-
-After the first manual deploy, pushes to `main` auto-deploy via GitHub Actions.
-
-### Required GitHub Secrets
-
-Go to your repo → Settings → Secrets → Actions:
-
-| Secret | Value |
-|--------|-------|
-| `VPS_HOST` | Your VPS IP or domain |
-| `VPS_SSH_KEY` | Private SSH key for the `deploy` user |
-
-The workflow (`.github/workflows/deploy.yml`) builds a Docker image, pushes to GHCR, then SSH into the VPS to pull and restart.
+Trigger the Deploy workflow manually with `full` mode, or push to `main`.
 
 ## Day-to-Day Operations
 
 ```bash
 # SSH in
-ssh deploy@myclaw.yourdomain.com
+ssh root@<server-ip>
 
-# Check bot status
-cd /opt/myclaw && docker compose ps
+# Check service status
+systemctl status myclaw
 
 # View logs
-docker compose logs -f --tail 100
+journalctl -u myclaw -f --no-pager
 
-# Restart
-docker compose restart
+# Check rclone timers
+systemctl list-timers myclaw-*
+
+# Restart service
+systemctl restart myclaw
 
 # Manual vault sync
-rclone sync gdrive:myclaw-vault /opt/myclaw/vault --exclude "memories/**"
-
-# Check DB
-docker compose exec myclaw node -e "
-  const db = require('better-sqlite3')('/app/data/myclaw.db');
-  console.log('Messages:', db.prepare('SELECT count(*) as c FROM conversations').get().c);
-"
+sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf
 ```
+
+## Updating
+
+Push to `main` triggers auto-deploy (quick mode). The workflow:
+1. Builds TypeScript in CI
+2. SCPs dist/, runtime/, package files to server
+3. Runs `npm ci --production` on server
+4. Updates NixOS config if changed
+5. Restarts the service
+
+## Destroying
+
+Run the **Destroy Infrastructure** workflow (type "destroy" to confirm). This deletes the server, firewall, and SSH key from Hetzner.

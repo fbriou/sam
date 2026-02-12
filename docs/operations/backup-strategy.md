@@ -11,52 +11,56 @@ MyClaw uses a partitioned backup approach: different data types are backed up di
 | Code | Git push | Every commit | Unlimited | GitHub |
 | Vault (your edits) | Google Drive Desktop | Instant | Google Drive history | Google Drive |
 | Vault (memories) | rclone push | Every 5 min | Unlimited | Google Drive |
-| SQLite DB | rclone copy | Hourly | All versions | Google Drive |
+| SQLite DB | rclone copy | Daily (3:00) | Latest | Google Drive |
 | .env secrets | Manual | On change | Latest | GitHub Secrets |
 
 ## SQLite Backup
 
-The SQLite database contains conversations and vector embeddings. It's backed up hourly.
+The SQLite database contains conversations and vector embeddings. It's backed up daily via a systemd timer.
 
-### Cron job (`/etc/cron.d/myclaw-sync`)
+### Systemd timer (`myclaw-db-backup`)
 
-```cron
-0 * * * * deploy rclone copy /opt/myclaw/data/myclaw.db gdrive:myclaw-backups/db/ 2>&1 | logger -t myclaw-backup
+Defined in `nixos/myclaw.nix`. Runs daily at 03:00:
+```
+rclone copy /var/lib/myclaw/data/myclaw.db gdrive:backups/myclaw/ --config /var/lib/myclaw/.config/rclone/rclone.conf
 ```
 
 ### Where backups go
 
 ```
 Google Drive/
-  myclaw-backups/
-    db/
-      myclaw.db          ← Latest copy (overwritten hourly)
+  backups/
+    myclaw/
+      myclaw.db          ← Latest copy (overwritten daily)
 ```
 
 ### Verify backups
 
 ```bash
+# Check timer status
+systemctl status myclaw-db-backup.timer
+
 # Check latest backup timestamp
-rclone lsl gdrive:myclaw-backups/db/myclaw.db
+sudo -u myclaw rclone lsl gdrive:backups/myclaw/myclaw.db --config /var/lib/myclaw/.config/rclone/rclone.conf
 
 # Check backup size (should grow over time)
-rclone size gdrive:myclaw-backups/db/
+sudo -u myclaw rclone size gdrive:backups/myclaw/ --config /var/lib/myclaw/.config/rclone/rclone.conf
 ```
 
 ## Vault Sync
 
-### Pull (Google Drive → VPS)
+### Pull (Google Drive → Server)
 
-Your edits in Obsidian sync to the VPS every 5 minutes:
-```cron
-*/5 * * * * deploy rclone sync gdrive:myclaw-vault /opt/myclaw/vault --exclude "memories/**"
+Your edits in Obsidian sync to the server every 5 minutes via the `myclaw-vault-pull` systemd timer:
+```
+rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf
 ```
 
-### Push (VPS → Google Drive)
+### Push (Server → Google Drive)
 
-Bot-generated memories sync back every 5 minutes:
-```cron
-*/5 * * * * deploy rclone sync /opt/myclaw/vault/memories/ gdrive:myclaw-vault/memories/
+Bot-generated memories sync back every 5 minutes (offset by 2.5 min) via the `myclaw-vault-push` systemd timer:
+```
+rclone sync /var/lib/myclaw/vault/memories/ gdrive:vault/memories/ --config /var/lib/myclaw/.config/rclone/rclone.conf
 ```
 
 ### Why partitioned?
@@ -68,24 +72,28 @@ No sync conflicts because each side owns different files.
 
 ## Monitoring
 
-### Check sync logs
+### Check sync status
 
 ```bash
+# Timer status
+systemctl list-timers myclaw-*
+
 # Recent sync activity
-journalctl -t myclaw-sync --since "1 hour ago"
+journalctl -u myclaw-vault-pull --since "1 hour ago" --no-pager
+journalctl -u myclaw-vault-push --since "1 hour ago" --no-pager
 
 # Recent backup activity
-journalctl -t myclaw-backup --since "2 hours ago"
+journalctl -u myclaw-db-backup --since "2 days ago" --no-pager
 ```
 
 ### Manual sync
 
 ```bash
 # Force pull vault
-rclone sync gdrive:myclaw-vault /opt/myclaw/vault --exclude "memories/**" -v
+sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf -v
 
 # Force backup DB
-rclone copy /opt/myclaw/data/myclaw.db gdrive:myclaw-backups/db/ -v
+sudo -u myclaw rclone copy /var/lib/myclaw/data/myclaw.db gdrive:backups/myclaw/ --config /var/lib/myclaw/.config/rclone/rclone.conf -v
 ```
 
 ## Recovery
@@ -95,11 +103,11 @@ See [disaster-recovery.md](disaster-recovery.md) for full recovery procedures.
 Quick restore:
 ```bash
 # Restore vault
-rclone sync gdrive:myclaw-vault /opt/myclaw/vault
+sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf
 
 # Restore DB
-rclone copy gdrive:myclaw-backups/db/myclaw.db /opt/myclaw/data/
+sudo -u myclaw rclone copy gdrive:backups/myclaw/myclaw.db /var/lib/myclaw/data/ --config /var/lib/myclaw/.config/rclone/rclone.conf
 
 # Re-embed if DB is missing or corrupted
-docker compose exec myclaw node dist/scripts/embed-vault.js
+cd /var/lib/myclaw/app && sudo -u myclaw node dist/scripts/embed-vault.js
 ```

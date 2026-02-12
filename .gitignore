@@ -11,6 +11,14 @@ vault/
 
 # OpenClaw reference (not part of this project)
 openclaw/
+openclaw-with-nixox-and-vps/
+
+# Terraform state (managed in CI cache)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/tfplan
+terraform/.terraform.lock.hcl
 
 # Node
 node_modules/

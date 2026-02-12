@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { Bot } from "grammy";
 import type { Database } from "better-sqlite3";
 import type { Config } from "../config.js";
@@ -51,7 +52,9 @@ export function createBot(config: Config, db: Database): Bot {
 
     try {
       // Spawn Claude Code CLI with session per chat
-      const sessionId = `tg-${chatId}`;
+      // Claude Code requires a valid UUID — derive one deterministically from the chat ID
+      const hash = createHash("md5").update(`myclaw-${chatId}`).digest("hex");
+      const sessionId = [hash.slice(0, 8), hash.slice(8, 12), hash.slice(12, 16), hash.slice(16, 20), hash.slice(20, 32)].join("-");
       const result = await spawnClaude(text, {
         sessionId,
         outputFormat: "json",

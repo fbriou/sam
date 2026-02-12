@@ -2,102 +2,91 @@
 
 ## Principle
 
-The VPS is 100% disposable. You can destroy it, recreate it, and be running again in under 10 minutes. Nothing critical lives only on the VPS.
+The server is 100% disposable. Run the full deploy workflow and everything is recreated from scratch. Nothing critical lives only on the server.
 
 ## What Lives Where
 
 | Data | Primary Location | Backed Up To | Recovery |
 |------|-----------------|--------------|----------|
-| **Code** | GitHub repo | GHCR (Docker images) | `git clone` or `docker pull` |
-| **vault/** (soul, user, skills, heartbeat) | Google Drive | Obsidian (local Mac) | rclone pulls from Drive |
-| **vault/memories/** | Generated on VPS | Google Drive (rclone pushes) | rclone pulls from Drive |
-| **SQLite DB** (conversations + vectors) | VPS `data/myclaw.db` | Google Drive (hourly backup) | rclone pulls backup |
-| **.env secrets** | VPS `/opt/myclaw/.env` | GitHub Secrets (source of truth) | Re-create from GitHub Secrets |
-| **Caddy TLS certs** | VPS (auto-renewed) | — | Caddy auto-regenerates on startup |
+| **Code** | GitHub repo | — | `git clone` |
+| **NixOS config** | GitHub repo (`nixos/`, `flake.nix`) | — | Full deploy recreates it |
+| **Terraform state** | GitHub Actions cache | — | Full deploy recreates resources |
+| **vault/** (soul, user, skills) | Google Drive | Obsidian (local Mac) | rclone pulls from Drive |
+| **vault/memories/** | Generated on server | Google Drive (rclone pushes) | rclone pulls from Drive |
+| **SQLite DB** | Server `/var/lib/myclaw/data/` | Google Drive (daily backup) | rclone pulls backup |
+| **.env secrets** | Server `/var/lib/myclaw/.env` | GitHub Secrets (source of truth) | Deploy workflow assembles it |
 
 ## Full Recovery Procedure
 
-Time estimate: ~10 minutes (mostly waiting for Docker pull).
+Time estimate: ~15 minutes (full deploy workflow does everything).
 
-### 1. Create a new VPS
+### Option A: Run the full deploy workflow (recommended)
+
+1. Go to GitHub → Actions → **Deploy MyClaw** → Run workflow → select **full**
+2. Wait ~15 minutes
+3. Done. The workflow creates a new server, installs NixOS, deploys the app, and assembles `.env` from secrets.
+
+### Option B: Manual recovery
+
+If GitHub Actions is down:
+
+#### 1. Create a new server
 
 On [Hetzner Cloud](https://console.hetzner.cloud/):
 - CX22, Ubuntu 24.04, add your SSH key
 
-### 2. Run setup script
+#### 2. Install NixOS
 
+From your local machine (with Nix installed):
 ```bash
-ssh root@<new-ip>
-bash <(curl -sL https://raw.githubusercontent.com/fbriou/sam/main/scripts/vps-setup.sh)
+# Inject your SSH key into nixos/configuration.nix first
+nix run github:nix-community/nixos-anywhere -- \
+  --flake .#myclaw \
+  --target-host root@<new-ip>
 ```
 
-### 3. Configure rclone
+#### 3. Deploy application
 
 ```bash
-ssh deploy@<new-ip>
-rclone config
-# Paste your Google Drive token (from your Mac's ~/.config/rclone/rclone.conf)
+SSH_OPTS="-o StrictHostKeyChecking=no"
+npm ci && npx tsc
+scp $SSH_OPTS -r dist package.json package-lock.json runtime root@<new-ip>:/var/lib/myclaw/app/
+ssh $SSH_OPTS root@<new-ip> "cd /var/lib/myclaw/app && npm ci --production"
+ssh $SSH_OPTS root@<new-ip> "npm install -g @anthropic-ai/claude-code"
 ```
 
-### 4. Restore data
+#### 4. Restore data
 
 ```bash
+# Create .env on the server (copy values from GitHub Secrets or password manager)
+ssh root@<new-ip> "nano /var/lib/myclaw/.env"
+
+# Deploy rclone config
+scp ~/.config/rclone/rclone.conf root@<new-ip>:/var/lib/myclaw/.config/rclone/
+
 # Pull vault from Google Drive
-rclone sync gdrive:myclaw-vault /opt/myclaw/vault
+ssh root@<new-ip> "sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf"
 
 # Pull latest DB backup
-rclone copy gdrive:myclaw-backups/db/myclaw.db /opt/myclaw/data/
+ssh root@<new-ip> "sudo -u myclaw rclone copy gdrive:backups/myclaw/myclaw.db /var/lib/myclaw/data/ --config /var/lib/myclaw/.config/rclone/rclone.conf"
 ```
 
-### 5. Create .env
+#### 5. Start and verify
 
 ```bash
-nano /opt/myclaw/.env
-# Copy values from GitHub Secrets or your password manager
+ssh root@<new-ip> "chown -R myclaw:myclaw /var/lib/myclaw && systemctl restart myclaw"
+# Send a Telegram message — bot should respond
 ```
-
-### 6. Copy compose files and deploy
-
-```bash
-cd /opt/myclaw
-git clone https://github.com/fbriou/sam.git repo
-cp repo/docker-compose*.yml .
-cp repo/Caddyfile .
-# Update domain in Caddyfile
-
-docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
-
-### 7. Update DNS
-
-Point `myclaw.yourdomain.com` to the new VPS IP.
-
-### 8. Restore rclone cron
-
-```bash
-sudo cp repo/docs/operations/cron-template /etc/cron.d/myclaw-sync
-```
-
-### 9. Verify
-
-- Send a Telegram message — bot should respond
-- Check `docker compose logs -f` for errors
-- Check `rclone ls gdrive:myclaw-vault/` for connectivity
-
-### 10. Update GitHub Secrets
-
-If the VPS IP changed, update `VPS_HOST` in GitHub repo → Settings → Secrets.
 
 ## What If SQLite Is Lost?
 
 If the DB backup is old or missing:
 1. The bot still works — it just loses conversation history and embeddings
-2. Re-embed the vault: `docker compose exec myclaw node dist/scripts/embed-vault.js`
+2. Re-embed the vault: `ssh root@<ip> "cd /var/lib/myclaw/app && sudo -u myclaw node dist/scripts/embed-vault.js"`
 3. New conversations will be saved normally
 
 ## Preventive Measures
 
-- **Verify backups weekly**: `rclone ls gdrive:myclaw-backups/db/` should show recent files
-- **Monitor sync**: `journalctl -t myclaw-sync --since "1 hour ago"` should show activity
-- **Keep GitHub Secrets updated**: After any .env change, update the corresponding GitHub Secret
+- **Verify backups**: `ssh root@<ip> "sudo -u myclaw rclone lsl gdrive:backups/myclaw/"` should show recent files
+- **Monitor timers**: `ssh root@<ip> "systemctl list-timers myclaw-*"` should show next run times
+- **Keep GitHub Secrets updated**: After any .env change, update the corresponding secret

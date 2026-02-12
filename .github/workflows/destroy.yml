@@ -1,0 +1,92 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm infrastructure destruction'
+        required: true
+        type: string
+
+env:
+  TF_VERSION: '1.6.0'
+  TF_VAR_hcloud_token: ${{ secrets.HETZNER_API_TOKEN }}
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+  TF_VAR_allowed_ssh_ip: ${{ secrets.ALLOWED_SSH_IP }}
+
+jobs:
+  confirm:
+    name: Confirm Destruction
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Confirmation
+        if: github.event.inputs.confirm != 'destroy'
+        run: |
+          echo "::error::You must type 'destroy' to confirm infrastructure destruction"
+          exit 1
+
+  destroy:
+    name: Destroy Infrastructure
+    needs: confirm
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TF_VERSION }}
+
+      - name: Restore Terraform State
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            terraform/terraform.tfstate
+            terraform/terraform.tfstate.backup
+          key: terraform-state-${{ github.repository }}
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: tofu init
+
+      - name: Terraform Destroy Plan
+        working-directory: terraform
+        run: tofu plan -destroy -out=destroy.tfplan
+
+      - name: Terraform Destroy
+        working-directory: terraform
+        run: tofu apply -auto-approve destroy.tfplan
+        continue-on-error: true
+
+      - name: Install hcloud CLI
+        run: |
+          curl -sL https://github.com/hetznercloud/cli/releases/latest/download/hcloud-linux-amd64.tar.gz | tar xz
+          sudo mv hcloud /usr/local/bin/
+
+      - name: Force Delete via Hetzner API (Fallback)
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          echo "Ensuring all resources are deleted via Hetzner API..."
+          hcloud server delete myclaw 2>/dev/null && echo "Server deleted" || echo "No server to delete"
+          hcloud firewall delete myclaw 2>/dev/null && echo "Firewall deleted" || echo "No firewall to delete"
+          hcloud ssh-key delete myclaw 2>/dev/null && echo "SSH key deleted" || echo "No SSH key to delete"
+          echo "Cleanup complete"
+
+      - name: Clear Terraform State Cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            terraform/terraform.tfstate
+            terraform/terraform.tfstate.backup
+          key: terraform-state-${{ github.repository }}-destroyed
+
+      - name: Destruction Summary
+        run: |
+          echo "## Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All Hetzner resources have been deleted." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To redeploy, run the **Deploy MyClaw** workflow with **full** mode." >> $GITHUB_STEP_SUMMARY

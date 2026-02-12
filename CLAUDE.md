@@ -72,12 +72,10 @@ npm start            # Run compiled output
 npm run embed-vault  # Re-embed vault files into sqlite-vec
 ```
 
-## Docker
+## Deployment
 
-```bash
-docker compose up                                                        # Local dev
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d    # Production
-```
+Server runs natively on NixOS (Hetzner Cloud). See `nixos/` and `terraform/` directories.
+GitHub Actions handles deployment (`.github/workflows/deploy.yml`): quick mode (~2min) or full mode (~15min).
 
 ## Documentation
 

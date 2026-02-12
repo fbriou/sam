@@ -37,7 +37,7 @@ MyClaw is a personal AI assistant that communicates via Telegram, powered by Cla
 1. You send a message on Telegram
 2. grammY bot receives the update
 3. Security middleware checks your Telegram user ID against the allow-list
-4. The orchestrator spawns `claude -p "your message" --output-format json --session-id tg-<chatId>` with `cwd: runtime/`
+4. The orchestrator spawns `claude -p "your message" --output-format json --session-id <uuid>` with `cwd: runtime/` (UUID is deterministically derived from chatId)
 5. Claude Code loads `runtime/CLAUDE.md` automatically (personality, rules)
 6. Claude Code may call MCP tools (`search_memory`) for RAG retrieval
 7. Claude Code returns a JSON response
@@ -61,12 +61,12 @@ MyClaw is a personal AI assistant that communicates via Telegram, powered by Cla
 ```
 You edit soul.md in Obsidian (Mac)
   → Google Drive Desktop syncs to cloud (instant)
-  → rclone cron on VPS pulls changes (within 5 min)
+  → rclone systemd timer on server pulls changes (within 5 min)
   → Next Claude Code invocation sees the update
 
 Bot generates daily summary
   → Writes to vault/memories/YYYY-MM-DD.md
-  → rclone cron pushes to Google Drive (within 5 min)
+  → rclone systemd timer pushes to Google Drive (within 5 min)
   → You see it in Obsidian
 ```
 

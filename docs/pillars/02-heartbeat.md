@@ -89,5 +89,5 @@ HEARTBEAT_INTERVAL_CRON=* * * * *
 
 Check logs:
 ```bash
-docker compose logs -f | grep heartbeat
+journalctl -u myclaw -f --no-pager | grep heartbeat
 ```

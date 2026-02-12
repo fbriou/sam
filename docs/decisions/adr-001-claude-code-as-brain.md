@@ -53,7 +53,7 @@ On the VPS, Claude Code uses `ANTHROPIC_API_KEY` (API billing), so the subscript
 
 ## Consequences
 
-- Claude Code CLI must be installed in the Docker image
+- Claude Code CLI must be installed on the NixOS server (done globally via `npm install -g`)
 - Process spawning adds ~1-2s latency per message
 - Authentication on VPS requires `ANTHROPIC_API_KEY` (API billing)
 - If we ever need to switch to direct API, the `src/claude/client.ts` wrapper is the only file that changes

@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Local Testing Fix (2026-02-12)
+
+- **Fixed**: `src/telegram/bot.ts` — Session ID must be a valid UUID (Claude Code CLI requirement); derive deterministically from chat ID via MD5 hash
+
+### Phase 8 — NixOS Deployment (2026-02-12)
+
+- **Added**: `flake.nix` — NixOS 24.11 flake with disko for Hetzner Cloud
+- **Added**: `nixos/configuration.nix` — System config (SSH, firewall, packages, service user)
+- **Added**: `nixos/myclaw.nix` — systemd service with security hardening + 3 rclone timers (vault pull, vault push, DB backup)
+- **Added**: `nixos/disk-config.nix` — GPT disk partitioning for nixos-anywhere
+- **Added**: `terraform/main.tf` — Hetzner Cloud server, firewall, SSH key (cx22, ~€4/mo)
+- **Added**: `terraform/variables.tf` — Infrastructure variables
+- **Added**: `terraform/outputs.tf` — Server IP, SSH command, firewall ID
+- **Added**: `terraform/versions.tf` — OpenTofu >= 1.6.0, hcloud provider
+- **Rewritten**: `.github/workflows/deploy.yml` — Two-mode NixOS deployment (quick ~2min, full ~15min)
+- **Added**: `.github/workflows/destroy.yml` — Safe infrastructure teardown with confirmation
+- **Removed**: `Dockerfile`, `docker-compose.yml`, `.dockerignore` — Docker no longer used (native NixOS on server, `npm run dev` locally)
+- **Removed**: `docker-compose.prod.yml` — No Docker on server
+- **Removed**: `Caddyfile` — No reverse proxy needed (Telegram long polling)
+- **Removed**: `scripts/vps-setup.sh` — Replaced by declarative NixOS configuration
+- **Updated**: `.gitignore` — Added terraform state, openclaw-with-nixox-and-vps
+
 ### Phase 1 — Foundation (2026-02-12)
 
 - **Added**: Project scaffold (`package.json`, `tsconfig.json`, `.env.example`, `.gitignore`)
