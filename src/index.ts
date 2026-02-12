@@ -1,5 +1,6 @@
 import { getConfig } from "./config.js";
 import { getDb, closeDb } from "./db/client.js";
+import { createBot, startBot } from "./telegram/bot.js";
 
 async function main() {
   console.log("[myclaw] Starting MyClaw...");
@@ -12,7 +13,10 @@ async function main() {
   const db = getDb(config.DB_PATH);
   console.log("[myclaw] Database initialized");
 
-  // TODO: Phase 2 — Start Telegram bot
+  // Start Telegram bot
+  const bot = createBot(config, db);
+  await startBot(bot, config);
+
   // TODO: Phase 3 — Start MCP server
   // TODO: Phase 5 — Start heartbeat cron
 
@@ -21,6 +25,7 @@ async function main() {
   // Graceful shutdown
   const shutdown = () => {
     console.log("\n[myclaw] Shutting down...");
+    bot.stop();
     closeDb();
     process.exit(0);
   };

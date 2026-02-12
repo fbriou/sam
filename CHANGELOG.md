@@ -17,3 +17,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Added**: `docs/architecture.md` — System overview with diagrams and data flow
 - **Added**: `docs/decisions/adr-001-claude-code-as-brain.md` — Architecture Decision Record
 - **Added**: `CHANGELOG.md` — This file
+
+### Phase 2 — Telegram Bot (2026-02-12)
+
+- **Added**: `src/claude/client.ts` — Claude Code CLI wrapper (spawn `claude -p`, JSON output, session management)
+- **Added**: `src/telegram/bot.ts` — grammY Telegram bot with middleware chain, message handler, typing indicator
+- **Added**: `src/telegram/security.ts` — Allow-list middleware (silent reject) and rate limiter (10/min)
+- **Added**: `src/telegram/formatter.ts` — Markdown → Telegram HTML converter with smart chunking (4096 char limit)
+- **Updated**: `src/index.ts` — Wire Telegram bot into boot sequence with graceful shutdown
+- **Added**: `docs/pillars/03-telegram.md` — Telegram pillar deep dive
+- **Added**: `docs/setup/telegram-bot.md` — BotFather setup guide
