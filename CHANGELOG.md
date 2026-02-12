@@ -49,3 +49,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Added**: `.claude/skills` → symlink to `vault/skills/` (Claude Code native skill loading)
 - **Updated**: `CLAUDE.md` — Listed available skills
 - **Added**: `docs/pillars/04-skills.md` — Skills pillar documentation
+
+### Phase 5 — Heartbeat System (2026-02-12)
+
+- **Added**: `src/heartbeat/runner.ts` — Cron-based heartbeat with Anthropic SDK (Haiku), active hours, duplicate suppression
+- **Updated**: `src/index.ts` — Wire heartbeat into boot sequence with graceful shutdown
+- **Added**: `docs/pillars/02-heartbeat.md` — Heartbeat pillar documentation
