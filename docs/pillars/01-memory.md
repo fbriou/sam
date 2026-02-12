@@ -103,6 +103,58 @@ Summary:
 - **VPS**: rclone cron pulls from Google Drive every 5 minutes
 - **Memories**: Bot writes to `memories/` → rclone pushes back to Google Drive
 
+## Auto-Summarization (`src/memory/summarizer.ts`)
+
+As conversations accumulate, the bot automatically summarizes them into daily memory files. This creates a long-term memory that persists across sessions.
+
+### How It Works
+
+1. **Trigger**: After every Telegram message response, `maybeSummarize()` runs in the background
+2. **Threshold check**: Counts messages since the last summarization — triggers at 20+ unsummarized messages
+3. **Summarization**: Sends the batch to Haiku (cheap, fast) with a prompt to extract key facts, decisions, action items, and dates
+4. **Save**: Appends the summary to `vault/memories/YYYY-MM-DD.md` (multiple summaries per day are supported)
+5. **Re-embed**: Chunks the updated memory file and stores vectors in sqlite-vec for RAG retrieval
+
+### Flow
+
+```
+Message #20 arrives → bot responds
+  → maybeSummarize() fires (background, non-blocking)
+  → 20+ unsummarized messages found
+  → Haiku extracts key facts
+  → Appends to vault/memories/2026-02-12.md
+  → Re-embeds into sqlite-vec
+  → rclone pushes to Google Drive (within 5 min)
+  → You see it in Obsidian
+```
+
+### Memory File Format
+
+```markdown
+# Memories — 2026-02-12
+
+## 14:30:00
+
+- **Summary**: Discussed project deadlines and deployment strategy
+- Decided to use Hetzner CX22 for VPS hosting
+- Action: Set up DNS for myclaw.yourdomain.com by Friday
+- Mentioned interest in adding email notifications later
+
+## 18:45:00
+
+- **Summary**: Debugged SQLite connection issue
+- Fixed WAL mode conflict with concurrent reads
+- Action: Add connection pooling if performance degrades
+```
+
+### Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Threshold | 20 messages | Minimum unsummarized messages to trigger |
+| Model | Haiku | Cost-efficient for routine summarization |
+| Max tokens | 1024 | Keeps summaries concise |
+
 ## Key Files
 
 | File | Purpose |
@@ -110,5 +162,6 @@ Summary:
 | `src/memory/vault.ts` | Read vault files, split into chunks |
 | `src/memory/embeddings.ts` | Voyage API embedding (embed, batch, query) |
 | `src/memory/rag.ts` | SQLite + sqlite-vec store/query/search |
+| `src/memory/summarizer.ts` | Auto-summarize conversations into daily memory files |
 | `src/mcp/server.ts` | MCP server exposing RAG tools to Claude Code |
 | `scripts/embed-vault.ts` | One-time vault embedding script |

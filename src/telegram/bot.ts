@@ -4,6 +4,7 @@ import type { Config } from "../config.js";
 import { spawnClaude } from "../claude/client.js";
 import { allowListMiddleware, rateLimitMiddleware } from "./security.js";
 import { markdownToTelegramHtml, chunkText } from "./formatter.js";
+import { maybeSummarize } from "../memory/summarizer.js";
 
 /**
  * Create and configure the Telegram bot.
@@ -76,6 +77,11 @@ export function createBot(config: Config, db: Database): Bot {
           await ctx.reply(chunk);
         }
       }
+
+      // Trigger auto-summarization check (runs in background, doesn't block response)
+      maybeSummarize(config, db).catch((err) =>
+        console.error("[summarizer] Background summarization error:", err)
+      );
     } catch (err) {
       console.error("[telegram] Error processing message:", err);
       await ctx.reply(

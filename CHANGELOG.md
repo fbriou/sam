@@ -55,3 +55,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Added**: `src/heartbeat/runner.ts` — Cron-based heartbeat with Anthropic SDK (Haiku), active hours, duplicate suppression
 - **Updated**: `src/index.ts` — Wire heartbeat into boot sequence with graceful shutdown
 - **Added**: `docs/pillars/02-heartbeat.md` — Heartbeat pillar documentation
+
+### Phase 6 — Auto-Summarization (2026-02-12)
+
+- **Added**: `src/memory/summarizer.ts` — Conversation auto-summarizer (Haiku, 20-message threshold, daily memory files)
+- **Updated**: `src/telegram/bot.ts` — Trigger `maybeSummarize()` in background after each message response
+- **Updated**: `docs/pillars/01-memory.md` — Added auto-summarization section with flow, format, and configuration
