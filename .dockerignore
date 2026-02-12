@@ -1,0 +1,12 @@
+node_modules
+dist
+data
+vault
+openclaw
+.env
+.env.*
+.git
+*.md
+!CLAUDE.md
+!README.md
+docs

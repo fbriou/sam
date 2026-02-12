@@ -61,3 +61,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Added**: `src/memory/summarizer.ts` — Conversation auto-summarizer (Haiku, 20-message threshold, daily memory files)
 - **Updated**: `src/telegram/bot.ts` — Trigger `maybeSummarize()` in background after each message response
 - **Updated**: `docs/pillars/01-memory.md` — Added auto-summarization section with flow, format, and configuration
+
+### Phase 7 — Deployment (2026-02-12)
+
+- **Added**: `Dockerfile` — Multi-stage build (Node.js 22, Claude Code CLI, non-root user)
+- **Added**: `docker-compose.yml` — Local development compose (build from source)
+- **Added**: `docker-compose.prod.yml` — Production overrides (GHCR image + Caddy reverse proxy)
+- **Added**: `Caddyfile` — Auto-TLS reverse proxy for Telegram webhooks
+- **Added**: `.dockerignore` — Excludes vault, data, openclaw from Docker context
+- **Added**: `.github/workflows/deploy.yml` — Build → GHCR → SSH deploy to VPS
+- **Added**: `scripts/vps-setup.sh` — One-time VPS provisioning (Docker, Caddy, rclone, UFW, fail2ban)
+- **Added**: `docs/setup/local-dev.md` — Local development quickstart guide
+- **Added**: `docs/setup/vps-deploy.md` — Full VPS deployment walkthrough
+- **Added**: `docs/operations/disaster-recovery.md` — Recovery runbook (VPS is disposable)
+- **Added**: `docs/operations/backup-strategy.md` — SQLite backup, vault sync, monitoring
+- **Added**: `docs/operations/monitoring.md` — Logs, health checks, troubleshooting
