@@ -2,7 +2,7 @@
 
 ## Overview
 
-The memory system gives MyClaw the ability to remember past conversations and recall relevant context. It works in two layers:
+The memory system gives Sam the ability to remember past conversations and recall relevant context. It works in two layers:
 
 1. **Obsidian Vault** (human-readable): Markdown files you edit in Obsidian
 2. **SQLite + sqlite-vec** (searchable): Vector embeddings for semantic search (RAG)
@@ -76,7 +76,7 @@ Configured in `.claude/settings.json`:
 ```json
 {
   "mcpServers": {
-    "myclaw-memory": {
+    "sam-memory": {
       "command": "node",
       "args": ["dist/mcp/server.js"]
     }
@@ -137,7 +137,7 @@ Message #20 arrives → bot responds
 
 - **Summary**: Discussed project deadlines and deployment strategy
 - Decided to use Hetzner CX22 for VPS hosting
-- Action: Set up DNS for myclaw.yourdomain.com by Friday
+- Action: Set up DNS for sam.yourdomain.com by Friday
 - Mentioned interest in adding email notifications later
 
 ## 18:45:00

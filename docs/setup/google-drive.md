@@ -10,35 +10,35 @@ Download from [drive.google.com/download](https://drive.google.com/download) if 
 
 In Finder, create a folder in Google Drive:
 ```
-~/Google Drive/My Drive/myclaw-vault/
+~/Google Drive/My Drive/sam-vault/
 ```
 
 ### 3. Link to Your Project
 
 Either symlink the vault:
 ```bash
-ln -s "$HOME/Google Drive/My Drive/myclaw-vault" ./vault
+ln -s "$HOME/Google Drive/My Drive/sam-vault" ./vault
 ```
 
 Or set the path in `.env`:
 ```
-VAULT_PATH=/Users/yourname/Google Drive/My Drive/myclaw-vault
+VAULT_PATH=/Users/yourname/Google Drive/My Drive/sam-vault
 ```
 
 ### 4. Open in Obsidian
 
 1. Open Obsidian
 2. Click "Open folder as vault"
-3. Select `myclaw-vault` from Google Drive
+3. Select `sam-vault` from Google Drive
 4. Now everything you edit syncs automatically
 
 ## On the Server (Production)
 
-rclone is installed via NixOS configuration and sync is handled by systemd timers (defined in `nixos/myclaw.nix`).
+rclone is installed via NixOS configuration and sync is handled by systemd timers (defined in `nixos/sam.nix`).
 
 ### rclone Configuration
 
-The rclone config is deployed automatically by the GitHub Actions deploy workflow from the `RCLONE_CONFIG` secret. It's placed at `/var/lib/myclaw/.config/rclone/rclone.conf`.
+The rclone config is deployed automatically by the GitHub Actions deploy workflow from the `RCLONE_CONFIG` secret. It's placed at `/var/lib/sam/.config/rclone/rclone.conf`.
 
 To set up the secret initially, configure rclone on your Mac:
 ```bash
@@ -56,25 +56,25 @@ cat ~/.config/rclone/rclone.conf
 
 ### Systemd Timers
 
-Three timers handle all sync (defined in `nixos/myclaw.nix`):
+Three timers handle all sync (defined in `nixos/sam.nix`):
 
 | Timer | Frequency | What it does |
 |-------|-----------|--------------|
-| `myclaw-vault-pull` | Every 5 min | Google Drive → `/var/lib/myclaw/vault` |
-| `myclaw-vault-push` | Every 5 min (offset) | `/var/lib/myclaw/vault/memories/` → Google Drive |
-| `myclaw-db-backup` | Daily at 03:00 | `/var/lib/myclaw/data/myclaw.db` → Google Drive |
+| `sam-vault-pull` | Every 5 min | Google Drive → `/var/lib/sam/vault` |
+| `sam-vault-push` | Every 5 min (offset) | `/var/lib/sam/vault/memories/` → Google Drive |
+| `sam-db-backup` | Daily at 03:00 | `/var/lib/sam/data/sam.db` → Google Drive |
 
 ### Verify
 
 ```bash
 # Check timer status
-systemctl list-timers myclaw-*
+systemctl list-timers sam-*
 
 # Check recent sync logs
-journalctl -u myclaw-vault-pull --since "10 minutes ago" --no-pager
+journalctl -u sam-vault-pull --since "10 minutes ago" --no-pager
 
 # Manual sync
-sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf -v
+sudo -u sam rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf -v
 ```
 
 ## How the Sync Flows
@@ -97,4 +97,4 @@ Bot generates a daily summary
 
 **Sync conflicts**: The sync is partitioned — you write soul/user/skills, the bot writes memories. No conflicts should occur.
 
-**Files not syncing**: Check timer logs: `journalctl -u myclaw-vault-pull -f --no-pager`
+**Files not syncing**: Check timer logs: `journalctl -u sam-vault-pull -f --no-pager`

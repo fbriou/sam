@@ -4,15 +4,15 @@ import { createBot, startBot } from "./telegram/bot.js";
 import { startHeartbeat } from "./heartbeat/runner.js";
 
 async function main() {
-  console.log("[myclaw] Starting MyClaw...");
+  console.log("[sam] Starting Sam...");
 
   // Load and validate config
   const config = getConfig();
-  console.log(`[myclaw] Environment: ${config.NODE_ENV}`);
+  console.log(`[sam] Environment: ${config.NODE_ENV}`);
 
   // Initialize database
   const db = getDb(config.DB_PATH);
-  console.log("[myclaw] Database initialized");
+  console.log("[sam] Database initialized");
 
   // Start Telegram bot
   const bot = createBot(config, db);
@@ -24,11 +24,11 @@ async function main() {
   // Note: MCP server runs as a separate process (spawned by Claude Code)
   // See .claude/settings.json for MCP server configuration
 
-  console.log("[myclaw] All systems booted. Ready.");
+  console.log("[sam] All systems booted. Ready.");
 
   // Graceful shutdown
   const shutdown = () => {
-    console.log("\n[myclaw] Shutting down...");
+    console.log("\n[sam] Shutting down...");
     heartbeatJob.stop();
     bot.stop();
     closeDb();
@@ -40,6 +40,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[myclaw] Fatal error:", err);
+  console.error("[sam] Fatal error:", err);
   process.exit(1);
 });

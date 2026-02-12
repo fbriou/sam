@@ -70,9 +70,9 @@ jobs:
           HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |
           echo "Ensuring all resources are deleted via Hetzner API..."
-          hcloud server delete myclaw 2>/dev/null && echo "Server deleted" || echo "No server to delete"
-          hcloud firewall delete myclaw 2>/dev/null && echo "Firewall deleted" || echo "No firewall to delete"
-          hcloud ssh-key delete myclaw 2>/dev/null && echo "SSH key deleted" || echo "No SSH key to delete"
+          hcloud server delete sam 2>/dev/null && echo "Server deleted" || echo "No server to delete"
+          hcloud firewall delete sam 2>/dev/null && echo "Firewall deleted" || echo "No firewall to delete"
+          hcloud ssh-key delete sam 2>/dev/null && echo "SSH key deleted" || echo "No SSH key to delete"
           echo "Cleanup complete"
 
       - name: Clear Terraform State Cache
@@ -89,4 +89,4 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All Hetzner resources have been deleted." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To redeploy, run the **Deploy MyClaw** workflow with **full** mode." >> $GITHUB_STEP_SUMMARY
+          echo "To redeploy, run the **Deploy Sam** workflow with **full** mode." >> $GITHUB_STEP_SUMMARY

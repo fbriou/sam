@@ -1,18 +1,20 @@
-import { createHash } from "crypto";
 import { Bot } from "grammy";
 import type { Database } from "better-sqlite3";
 import type { Config } from "../config.js";
-import { spawnClaude } from "../claude/client.js";
+import { askClaude } from "../claude/client.js";
 import { allowListMiddleware, rateLimitMiddleware } from "./security.js";
 import { markdownToTelegramHtml, chunkText } from "./formatter.js";
 import { maybeSummarize } from "../memory/summarizer.js";
+
+// Per-chat session tracking for Agent SDK resume
+const chatSessions = new Map<number, string>();
 
 /**
  * Create and configure the Telegram bot.
  *
  * The bot is a thin orchestrator:
  * 1. Receives a message from Telegram
- * 2. Spawns `claude -p` with the message text
+ * 2. Calls Claude via the Agent SDK (with session resume)
  * 3. Saves both user and assistant messages to SQLite
  * 4. Converts the response to Telegram HTML
  * 5. Chunks and sends the response back
@@ -33,7 +35,7 @@ export function createBot(config: Config, db: Database): Bot {
   // /start command
   bot.command("start", async (ctx) => {
     await ctx.reply(
-      "MyClaw is ready. Send me a message and I'll help you out."
+      "Sam is ready. Send me a message and I'll help you out."
     );
   });
 
@@ -51,15 +53,13 @@ export function createBot(config: Config, db: Database): Bot {
     }, 4_000);
 
     try {
-      // Spawn Claude Code CLI with session per chat
-      // Claude Code requires a valid UUID — derive one deterministically from the chat ID
-      const hash = createHash("md5").update(`myclaw-${chatId}`).digest("hex");
-      const sessionId = [hash.slice(0, 8), hash.slice(8, 12), hash.slice(12, 16), hash.slice(16, 20), hash.slice(20, 32)].join("-");
-      const result = await spawnClaude(text, {
-        sessionId,
-        outputFormat: "json",
-        maxTurns: 5,
+      // Call Claude via Agent SDK with session resume for continuity
+      const prevSessionId = chatSessions.get(chatId);
+      const result = await askClaude(text, {
+        sessionId: prevSessionId,
+        model: config.CLAUDE_MODEL,
       });
+      chatSessions.set(chatId, result.sessionId);
 
       // Save conversation to SQLite
       const insertStmt = db.prepare(

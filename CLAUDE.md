@@ -1,8 +1,8 @@
-# MyClaw — Development Guide
+# Sam — Development Guide
 
 ## Project Overview
 
-MyClaw is a personal AI assistant powered by Claude Code CLI, communicating via Telegram.
+Sam is a personal AI assistant powered by Claude Code CLI, communicating via Telegram.
 Built with Node.js 22 + TypeScript, grammY, SQLite + sqlite-vec, and a custom MCP server.
 
 ## Runtime vs Development
@@ -58,7 +58,7 @@ Key source files:
 
 - TypeScript strict mode, ES2022 target, ESNext modules
 - File extensions in imports: `./foo.js` (not `.ts`)
-- Console logging with `[module]` prefixes: `[telegram]`, `[mcp]`, `[heartbeat]`, `[summarizer]`, `[myclaw]`
+- Console logging with `[module]` prefixes: `[telegram]`, `[mcp]`, `[heartbeat]`, `[summarizer]`, `[sam]`
 - Zod for config validation
 - `better-sqlite3` (synchronous) for database operations
 - Error handling: try/catch in handlers, `.catch()` for background tasks

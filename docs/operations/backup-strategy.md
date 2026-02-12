@@ -2,7 +2,7 @@
 
 ## Overview
 
-MyClaw uses a partitioned backup approach: different data types are backed up differently based on their origin and importance.
+Sam uses a partitioned backup approach: different data types are backed up differently based on their origin and importance.
 
 ## Backup Matrix
 
@@ -18,11 +18,11 @@ MyClaw uses a partitioned backup approach: different data types are backed up di
 
 The SQLite database contains conversations and vector embeddings. It's backed up daily via a systemd timer.
 
-### Systemd timer (`myclaw-db-backup`)
+### Systemd timer (`sam-db-backup`)
 
-Defined in `nixos/myclaw.nix`. Runs daily at 03:00:
+Defined in `nixos/sam.nix`. Runs daily at 03:00:
 ```
-rclone copy /var/lib/myclaw/data/myclaw.db gdrive:backups/myclaw/ --config /var/lib/myclaw/.config/rclone/rclone.conf
+rclone copy /var/lib/sam/data/sam.db gdrive:backups/sam/ --config /var/lib/sam/.config/rclone/rclone.conf
 ```
 
 ### Where backups go
@@ -30,37 +30,37 @@ rclone copy /var/lib/myclaw/data/myclaw.db gdrive:backups/myclaw/ --config /var/
 ```
 Google Drive/
   backups/
-    myclaw/
-      myclaw.db          ← Latest copy (overwritten daily)
+    sam/
+      sam.db          ← Latest copy (overwritten daily)
 ```
 
 ### Verify backups
 
 ```bash
 # Check timer status
-systemctl status myclaw-db-backup.timer
+systemctl status sam-db-backup.timer
 
 # Check latest backup timestamp
-sudo -u myclaw rclone lsl gdrive:backups/myclaw/myclaw.db --config /var/lib/myclaw/.config/rclone/rclone.conf
+sudo -u sam rclone lsl gdrive:backups/sam/sam.db --config /var/lib/sam/.config/rclone/rclone.conf
 
 # Check backup size (should grow over time)
-sudo -u myclaw rclone size gdrive:backups/myclaw/ --config /var/lib/myclaw/.config/rclone/rclone.conf
+sudo -u sam rclone size gdrive:backups/sam/ --config /var/lib/sam/.config/rclone/rclone.conf
 ```
 
 ## Vault Sync
 
 ### Pull (Google Drive → Server)
 
-Your edits in Obsidian sync to the server every 5 minutes via the `myclaw-vault-pull` systemd timer:
+Your edits in Obsidian sync to the server every 5 minutes via the `sam-vault-pull` systemd timer:
 ```
-rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf
+rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf
 ```
 
 ### Push (Server → Google Drive)
 
-Bot-generated memories sync back every 5 minutes (offset by 2.5 min) via the `myclaw-vault-push` systemd timer:
+Bot-generated memories sync back every 5 minutes (offset by 2.5 min) via the `sam-vault-push` systemd timer:
 ```
-rclone sync /var/lib/myclaw/vault/memories/ gdrive:vault/memories/ --config /var/lib/myclaw/.config/rclone/rclone.conf
+rclone sync /var/lib/sam/vault/memories/ gdrive:vault/memories/ --config /var/lib/sam/.config/rclone/rclone.conf
 ```
 
 ### Why partitioned?
@@ -76,24 +76,24 @@ No sync conflicts because each side owns different files.
 
 ```bash
 # Timer status
-systemctl list-timers myclaw-*
+systemctl list-timers sam-*
 
 # Recent sync activity
-journalctl -u myclaw-vault-pull --since "1 hour ago" --no-pager
-journalctl -u myclaw-vault-push --since "1 hour ago" --no-pager
+journalctl -u sam-vault-pull --since "1 hour ago" --no-pager
+journalctl -u sam-vault-push --since "1 hour ago" --no-pager
 
 # Recent backup activity
-journalctl -u myclaw-db-backup --since "2 days ago" --no-pager
+journalctl -u sam-db-backup --since "2 days ago" --no-pager
 ```
 
 ### Manual sync
 
 ```bash
 # Force pull vault
-sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf -v
+sudo -u sam rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf -v
 
 # Force backup DB
-sudo -u myclaw rclone copy /var/lib/myclaw/data/myclaw.db gdrive:backups/myclaw/ --config /var/lib/myclaw/.config/rclone/rclone.conf -v
+sudo -u sam rclone copy /var/lib/sam/data/sam.db gdrive:backups/sam/ --config /var/lib/sam/.config/rclone/rclone.conf -v
 ```
 
 ## Recovery
@@ -103,11 +103,11 @@ See [disaster-recovery.md](disaster-recovery.md) for full recovery procedures.
 Quick restore:
 ```bash
 # Restore vault
-sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf
+sudo -u sam rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf
 
 # Restore DB
-sudo -u myclaw rclone copy gdrive:backups/myclaw/myclaw.db /var/lib/myclaw/data/ --config /var/lib/myclaw/.config/rclone/rclone.conf
+sudo -u sam rclone copy gdrive:backups/sam/sam.db /var/lib/sam/data/ --config /var/lib/sam/.config/rclone/rclone.conf
 
 # Re-embed if DB is missing or corrupted
-cd /var/lib/myclaw/app && sudo -u myclaw node dist/scripts/embed-vault.js
+cd /var/lib/sam/app && sudo -u sam node dist/scripts/embed-vault.js
 ```

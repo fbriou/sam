@@ -1,4 +1,4 @@
-name: Deploy MyClaw
+name: Deploy Sam
 
 on:
   push:
@@ -50,11 +50,11 @@ jobs:
         env:
           HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |
-          SERVER_IP=$(hcloud server ip myclaw 2>/dev/null || echo "")
+          SERVER_IP=$(hcloud server ip sam 2>/dev/null || echo "")
           if [ -n "$SERVER_IP" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "ip=$SERVER_IP" >> $GITHUB_OUTPUT
-            FIREWALL_ID=$(hcloud firewall describe myclaw -o json 2>/dev/null | jq -r '.id' || echo "")
+            FIREWALL_ID=$(hcloud firewall describe sam -o json 2>/dev/null | jq -r '.id' || echo "")
             echo "firewall_id=$FIREWALL_ID" >> $GITHUB_OUTPUT
             echo "Server found at $SERVER_IP"
           else
@@ -130,7 +130,7 @@ jobs:
           scp $SSH_OPTS -r nixos/* root@$SERVER_IP:/etc/nixos/nixos/
 
           echo "Running nixos-rebuild switch..."
-          ssh $SSH_OPTS root@$SERVER_IP "cd /etc/nixos && nixos-rebuild switch --flake .#myclaw"
+          ssh $SSH_OPTS root@$SERVER_IP "cd /etc/nixos && nixos-rebuild switch --flake .#sam"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -148,23 +148,23 @@ jobs:
           SERVER_IP="${{ needs.check.outputs.server_ip }}"
 
           echo "Deploying application files..."
-          ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/myclaw/app/runtime/.claude"
+          ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/app/runtime/.claude"
 
           # Copy built application
-          scp $SSH_OPTS -r dist root@$SERVER_IP:/var/lib/myclaw/app/
-          scp $SSH_OPTS package.json package-lock.json root@$SERVER_IP:/var/lib/myclaw/app/
-          scp $SSH_OPTS -r runtime root@$SERVER_IP:/var/lib/myclaw/app/
+          scp $SSH_OPTS -r dist root@$SERVER_IP:/var/lib/sam/app/
+          scp $SSH_OPTS package.json package-lock.json root@$SERVER_IP:/var/lib/sam/app/
+          scp $SSH_OPTS -r runtime root@$SERVER_IP:/var/lib/sam/app/
 
           # Install production dependencies on server (compiles native modules for Linux)
           echo "Installing production dependencies..."
-          ssh $SSH_OPTS root@$SERVER_IP "cd /var/lib/myclaw/app && npm ci --production"
+          ssh $SSH_OPTS root@$SERVER_IP "cd /var/lib/sam/app && npm ci --production"
 
           # Install Claude Code CLI globally
           echo "Installing Claude Code CLI..."
           ssh $SSH_OPTS root@$SERVER_IP "npm install -g @anthropic-ai/claude-code"
 
           # Fix ownership
-          ssh $SSH_OPTS root@$SERVER_IP "chown -R myclaw:myclaw /var/lib/myclaw/app"
+          ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/app"
 
       - name: Deploy Environment File
         run: |
@@ -172,14 +172,14 @@ jobs:
           SERVER_IP="${{ needs.check.outputs.server_ip }}"
 
           # Assemble .env from individual secrets
-          cat > /tmp/myclaw.env << ENVEOF
+          cat > /tmp/sam.env << ENVEOF
           ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_IDS=${{ secrets.TELEGRAM_ALLOWED_IDS }}
           TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
           WEBHOOK_SECRET=${{ secrets.WEBHOOK_SECRET }}
-          VAULT_PATH=/var/lib/myclaw/vault
-          DB_PATH=/var/lib/myclaw/data/myclaw.db
+          VAULT_PATH=/var/lib/sam/vault
+          DB_PATH=/var/lib/sam/data/sam.db
           NODE_ENV=production
           ACTIVE_HOURS_START=08:00
           ACTIVE_HOURS_END=22:00
@@ -189,9 +189,9 @@ jobs:
           HEARTBEAT_MODEL=claude-haiku-4-5-20251001
           ENVEOF
 
-          scp $SSH_OPTS /tmp/myclaw.env root@$SERVER_IP:/var/lib/myclaw/.env
-          ssh $SSH_OPTS root@$SERVER_IP "chown myclaw:myclaw /var/lib/myclaw/.env && chmod 600 /var/lib/myclaw/.env"
-          rm -f /tmp/myclaw.env
+          scp $SSH_OPTS /tmp/sam.env root@$SERVER_IP:/var/lib/sam/.env
+          ssh $SSH_OPTS root@$SERVER_IP "chown sam:sam /var/lib/sam/.env && chmod 600 /var/lib/sam/.env"
+          rm -f /tmp/sam.env
 
       - name: Deploy rclone Config
         run: |
@@ -200,18 +200,18 @@ jobs:
 
           if [ -n "${{ secrets.RCLONE_CONFIG }}" ]; then
             echo "Deploying rclone configuration..."
-            ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/myclaw/.config/rclone"
+            ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/.config/rclone"
             printf '%s' "${{ secrets.RCLONE_CONFIG }}" > /tmp/rclone.conf
-            scp $SSH_OPTS /tmp/rclone.conf root@$SERVER_IP:/var/lib/myclaw/.config/rclone/rclone.conf
-            ssh $SSH_OPTS root@$SERVER_IP "chown -R myclaw:myclaw /var/lib/myclaw/.config && chmod 600 /var/lib/myclaw/.config/rclone/rclone.conf"
+            scp $SSH_OPTS /tmp/rclone.conf root@$SERVER_IP:/var/lib/sam/.config/rclone/rclone.conf
+            ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/.config && chmod 600 /var/lib/sam/.config/rclone/rclone.conf"
             rm -f /tmp/rclone.conf
           fi
 
-      - name: Restart MyClaw Service
+      - name: Restart Sam Service
         run: |
           SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-          ssh $SSH_OPTS root@${{ needs.check.outputs.server_ip }} "systemctl restart myclaw"
-          echo "MyClaw service restarted"
+          ssh $SSH_OPTS root@${{ needs.check.outputs.server_ip }} "systemctl restart sam"
+          echo "Sam service restarted"
 
       - name: Remove Temporary Firewall Rule
         if: always()
@@ -360,9 +360,9 @@ jobs:
           HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |
           echo "Full deploy: Deleting existing Hetzner resources..."
-          hcloud server delete myclaw 2>/dev/null || true
-          hcloud firewall delete myclaw 2>/dev/null || true
-          hcloud ssh-key delete myclaw 2>/dev/null || true
+          hcloud server delete sam 2>/dev/null || true
+          hcloud firewall delete sam 2>/dev/null || true
+          hcloud ssh-key delete sam 2>/dev/null || true
           echo "Cleanup complete"
 
       - name: Terraform Apply
@@ -427,7 +427,7 @@ jobs:
       - name: Install NixOS via nixos-anywhere
         run: |
           nix run github:nix-community/nixos-anywhere -- \
-            --flake .#myclaw \
+            --flake .#sam \
             --target-host root@${{ steps.server.outputs.ip }} \
             --ssh-option "IdentityFile=~/.ssh/id_ed25519" \
             --ssh-option "StrictHostKeyChecking=no" \
@@ -462,37 +462,37 @@ jobs:
           SERVER_IP="${{ steps.server.outputs.ip }}"
 
           echo "Deploying application..."
-          ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/myclaw/app/runtime/.claude"
+          ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/app/runtime/.claude"
 
           # Copy built application
-          scp $SSH_OPTS -r dist root@$SERVER_IP:/var/lib/myclaw/app/
-          scp $SSH_OPTS package.json package-lock.json root@$SERVER_IP:/var/lib/myclaw/app/
-          scp $SSH_OPTS -r runtime root@$SERVER_IP:/var/lib/myclaw/app/
+          scp $SSH_OPTS -r dist root@$SERVER_IP:/var/lib/sam/app/
+          scp $SSH_OPTS package.json package-lock.json root@$SERVER_IP:/var/lib/sam/app/
+          scp $SSH_OPTS -r runtime root@$SERVER_IP:/var/lib/sam/app/
 
           # Install production dependencies (compiles native modules for Linux)
           echo "Installing production dependencies..."
-          ssh $SSH_OPTS root@$SERVER_IP "cd /var/lib/myclaw/app && npm ci --production"
+          ssh $SSH_OPTS root@$SERVER_IP "cd /var/lib/sam/app && npm ci --production"
 
           # Install Claude Code CLI globally
           echo "Installing Claude Code CLI..."
           ssh $SSH_OPTS root@$SERVER_IP "npm install -g @anthropic-ai/claude-code"
 
           # Fix ownership
-          ssh $SSH_OPTS root@$SERVER_IP "chown -R myclaw:myclaw /var/lib/myclaw/app"
+          ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/app"
 
       - name: Deploy Environment File
         run: |
           SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           SERVER_IP="${{ steps.server.outputs.ip }}"
 
-          cat > /tmp/myclaw.env << ENVEOF
+          cat > /tmp/sam.env << ENVEOF
           ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_IDS=${{ secrets.TELEGRAM_ALLOWED_IDS }}
           TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
           WEBHOOK_SECRET=${{ secrets.WEBHOOK_SECRET }}
-          VAULT_PATH=/var/lib/myclaw/vault
-          DB_PATH=/var/lib/myclaw/data/myclaw.db
+          VAULT_PATH=/var/lib/sam/vault
+          DB_PATH=/var/lib/sam/data/sam.db
           NODE_ENV=production
           ACTIVE_HOURS_START=08:00
           ACTIVE_HOURS_END=22:00
@@ -502,9 +502,9 @@ jobs:
           HEARTBEAT_MODEL=claude-haiku-4-5-20251001
           ENVEOF
 
-          scp $SSH_OPTS /tmp/myclaw.env root@$SERVER_IP:/var/lib/myclaw/.env
-          ssh $SSH_OPTS root@$SERVER_IP "chown myclaw:myclaw /var/lib/myclaw/.env && chmod 600 /var/lib/myclaw/.env"
-          rm -f /tmp/myclaw.env
+          scp $SSH_OPTS /tmp/sam.env root@$SERVER_IP:/var/lib/sam/.env
+          ssh $SSH_OPTS root@$SERVER_IP "chown sam:sam /var/lib/sam/.env && chmod 600 /var/lib/sam/.env"
+          rm -f /tmp/sam.env
 
       - name: Deploy rclone Config
         run: |
@@ -513,18 +513,18 @@ jobs:
 
           if [ -n "${{ secrets.RCLONE_CONFIG }}" ]; then
             echo "Deploying rclone configuration..."
-            ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/myclaw/.config/rclone"
+            ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/.config/rclone"
             printf '%s' "${{ secrets.RCLONE_CONFIG }}" > /tmp/rclone.conf
-            scp $SSH_OPTS /tmp/rclone.conf root@$SERVER_IP:/var/lib/myclaw/.config/rclone/rclone.conf
-            ssh $SSH_OPTS root@$SERVER_IP "chown -R myclaw:myclaw /var/lib/myclaw/.config && chmod 600 /var/lib/myclaw/.config/rclone/rclone.conf"
+            scp $SSH_OPTS /tmp/rclone.conf root@$SERVER_IP:/var/lib/sam/.config/rclone/rclone.conf
+            ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/.config && chmod 600 /var/lib/sam/.config/rclone/rclone.conf"
             rm -f /tmp/rclone.conf
           fi
 
-      - name: Start MyClaw Service
+      - name: Start Sam Service
         run: |
           SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-          ssh $SSH_OPTS root@${{ steps.server.outputs.ip }} "systemctl restart myclaw"
-          echo "MyClaw service started"
+          ssh $SSH_OPTS root@${{ steps.server.outputs.ip }} "systemctl restart sam"
+          echo "Sam service started"
 
       - name: Remove Temporary Firewall Rule
         if: always()
@@ -598,13 +598,13 @@ jobs:
             echo "Disk: $(df -h / | tail -1)"
             echo ""
             echo "=== Services Status ==="
-            systemctl is-active myclaw && echo "MyClaw: running" || echo "MyClaw: not running"
+            systemctl is-active sam && echo "Sam: running" || echo "Sam: not running"
             echo ""
             echo "=== Timers ==="
-            systemctl list-timers myclaw-* --no-pager 2>/dev/null || true
+            systemctl list-timers sam-* --no-pager 2>/dev/null || true
             echo ""
             echo "=== Recent Logs ==="
-            journalctl -u myclaw --no-pager -n 10 2>/dev/null || true
+            journalctl -u sam --no-pager -n 10 2>/dev/null || true
           EOF
 
       - name: Remove Temporary Firewall Rule

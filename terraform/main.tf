@@ -1,11 +1,11 @@
 # SSH Key
-resource "hcloud_ssh_key" "myclaw" {
+resource "hcloud_ssh_key" "sam" {
   name       = var.server_name
   public_key = var.ssh_public_key
 }
 
 # Firewall - Only allow SSH from specific IP
-resource "hcloud_firewall" "myclaw" {
+resource "hcloud_firewall" "sam" {
   name = var.server_name
 
   # Allow SSH only from your IP
@@ -44,19 +44,19 @@ resource "hcloud_firewall" "myclaw" {
 }
 
 # Main server
-resource "hcloud_server" "myclaw" {
+resource "hcloud_server" "sam" {
   name        = var.server_name
   image       = var.image
   server_type = var.server_type
   location    = var.location
 
-  ssh_keys = [hcloud_ssh_key.myclaw.id]
+  ssh_keys = [hcloud_ssh_key.sam.id]
 
-  firewall_ids = [hcloud_firewall.myclaw.id]
+  firewall_ids = [hcloud_firewall.sam.id]
 
   labels = {
     environment = "production"
-    service     = "myclaw"
+    service     = "sam"
     managed_by  = "opentofu"
   }
 

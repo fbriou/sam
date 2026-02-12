@@ -89,5 +89,5 @@ HEARTBEAT_INTERVAL_CRON=* * * * *
 
 Check logs:
 ```bash
-journalctl -u myclaw -f --no-pager | grep heartbeat
+journalctl -u sam -f --no-pager | grep heartbeat
 ```

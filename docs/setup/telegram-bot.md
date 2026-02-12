@@ -4,8 +4,8 @@
 
 1. Open Telegram and search for [@BotFather](https://t.me/BotFather)
 2. Send `/newbot`
-3. Choose a **name** for your bot (e.g., "MyClaw Assistant")
-4. Choose a **username** (must end in "bot", e.g., "myclaw_assistant_bot")
+3. Choose a **name** for your bot (e.g., "Sam Assistant")
+4. Choose a **username** (must end in "bot", e.g., "sam_assistant_bot")
 5. BotFather will give you a **bot token** — copy it
 
 Example token: `7123456789:ABCdefGHIjklMNOpqrstUVwxyz`

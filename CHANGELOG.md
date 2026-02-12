@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to MyClaw are documented here.
+All notable changes to Sam are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
@@ -13,7 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 - **Added**: `flake.nix` — NixOS 24.11 flake with disko for Hetzner Cloud
 - **Added**: `nixos/configuration.nix` — System config (SSH, firewall, packages, service user)
-- **Added**: `nixos/myclaw.nix` — systemd service with security hardening + 3 rclone timers (vault pull, vault push, DB backup)
+- **Added**: `nixos/sam.nix` — systemd service with security hardening + 3 rclone timers (vault pull, vault push, DB backup)
 - **Added**: `nixos/disk-config.nix` — GPT disk partitioning for nixos-anywhere
 - **Added**: `terraform/main.tf` — Hetzner Cloud server, firewall, SSH key (cx22, ~€4/mo)
 - **Added**: `terraform/variables.tf` — Infrastructure variables
@@ -31,7 +31,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 - **Added**: Project scaffold (`package.json`, `tsconfig.json`, `.env.example`, `.gitignore`)
 - **Added**: `CLAUDE.md` — soul file defining assistant identity, memory tools, skills, rules, and response format
-- **Added**: `.claude/settings.json` — MCP server configuration for myclaw-memory
+- **Added**: `.claude/settings.json` — MCP server configuration for sam-memory
 - **Added**: `src/config.ts` — Zod-validated environment variable loader
 - **Added**: `src/db/schema.ts` — SQLite schema with migrations (conversations, memory_chunks, memory_vec, heartbeat_log)
 - **Added**: `src/db/client.ts` — Database connection manager with graceful shutdown

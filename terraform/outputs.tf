@@ -1,29 +1,29 @@
 output "server_ip" {
-  description = "Public IP address of the MyClaw server"
-  value       = hcloud_server.myclaw.ipv4_address
+  description = "Public IP address of the Sam server"
+  value       = hcloud_server.sam.ipv4_address
 }
 
 output "server_ipv6" {
-  description = "IPv6 address of the MyClaw server"
-  value       = hcloud_server.myclaw.ipv6_address
+  description = "IPv6 address of the Sam server"
+  value       = hcloud_server.sam.ipv6_address
 }
 
 output "server_id" {
   description = "Hetzner server ID"
-  value       = hcloud_server.myclaw.id
+  value       = hcloud_server.sam.id
 }
 
 output "server_status" {
   description = "Server status"
-  value       = hcloud_server.myclaw.status
+  value       = hcloud_server.sam.status
 }
 
 output "ssh_command" {
   description = "SSH command to connect to the server"
-  value       = "ssh root@${hcloud_server.myclaw.ipv4_address}"
+  value       = "ssh root@${hcloud_server.sam.ipv4_address}"
 }
 
 output "firewall_id" {
   description = "Hetzner firewall ID"
-  value       = hcloud_firewall.myclaw.id
+  value       = hcloud_firewall.sam.id
 }

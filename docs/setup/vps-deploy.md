@@ -2,7 +2,7 @@
 
 ## Overview
 
-MyClaw runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment is fully automated via GitHub Actions with two modes:
+Sam runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment is fully automated via GitHub Actions with two modes:
 
 - **Quick deploy** (~2 min): Update code + NixOS config on existing server
 - **Full deploy** (~15 min): Create server from scratch with OpenTofu + nixos-anywhere
@@ -45,7 +45,7 @@ MyClaw runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deploymen
 ### 1. Generate SSH key
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/myclaw -C "myclaw-deploy"
+ssh-keygen -t ed25519 -f ~/.ssh/sam -C "sam-deploy"
 ```
 
 ### 2. Create Hetzner API token
@@ -76,19 +76,19 @@ Trigger the Deploy workflow manually with `full` mode, or push to `main`.
 ssh root@<server-ip>
 
 # Check service status
-systemctl status myclaw
+systemctl status sam
 
 # View logs
-journalctl -u myclaw -f --no-pager
+journalctl -u sam -f --no-pager
 
 # Check rclone timers
-systemctl list-timers myclaw-*
+systemctl list-timers sam-*
 
 # Restart service
-systemctl restart myclaw
+systemctl restart sam
 
 # Manual vault sync
-sudo -u myclaw rclone sync gdrive:vault /var/lib/myclaw/vault --config /var/lib/myclaw/.config/rclone/rclone.conf
+sudo -u sam rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf
 ```
 
 ## Updating

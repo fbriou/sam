@@ -7,7 +7,7 @@ variable "hcloud_token" {
 variable "server_name" {
   description = "Name of the server"
   type        = string
-  default     = "myclaw"
+  default     = "sam"
 }
 
 variable "server_type" {

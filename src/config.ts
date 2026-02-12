@@ -21,7 +21,7 @@ const envSchema = z.object({
 
   // Paths
   VAULT_PATH: z.string().default("./vault"),
-  DB_PATH: z.string().default("./data/myclaw.db"),
+  DB_PATH: z.string().default("./data/sam.db"),
 
   // Environment
   NODE_ENV: z

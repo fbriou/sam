@@ -16,7 +16,7 @@ import { chunkEntireVault } from "../src/memory/vault.js";
 import { embedAndStoreChunks } from "../src/memory/rag.js";
 
 const VAULT_PATH = process.env.VAULT_PATH || "./vault";
-const DB_PATH = process.env.DB_PATH || "./data/myclaw.db";
+const DB_PATH = process.env.DB_PATH || "./data/sam.db";
 
 async function main() {
   console.log(`[embed] Embedding vault at: ${VAULT_PATH}`);

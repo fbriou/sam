@@ -9,7 +9,7 @@ import * as sqliteVec from "sqlite-vec";
 import { searchMemory } from "../memory/rag.js";
 
 /**
- * MyClaw Memory MCP Server
+ * Sam Memory MCP Server
  *
  * This server exposes RAG tools to Claude Code via the Model Context Protocol.
  * When Claude Code runs `claude -p`, it connects to this MCP server and can
@@ -18,7 +18,7 @@ import { searchMemory } from "../memory/rag.js";
  * Registered in .claude/settings.json:
  * {
  *   "mcpServers": {
- *     "myclaw-memory": {
+ *     "sam-memory": {
  *       "command": "node",
  *       "args": ["dist/mcp/server.js"]
  *     }
@@ -27,7 +27,7 @@ import { searchMemory } from "../memory/rag.js";
  */
 
 const VAULT_PATH = process.env.VAULT_PATH || "./vault";
-const DB_PATH = process.env.DB_PATH || "./data/myclaw.db";
+const DB_PATH = process.env.DB_PATH || "./data/sam.db";
 
 // Initialize database connection
 function getDb(): Database.Database {
@@ -39,7 +39,7 @@ function getDb(): Database.Database {
 
 const server = new Server(
   {
-    name: "myclaw-memory",
+    name: "sam-memory",
     version: "0.1.0",
   },
   {
@@ -241,7 +241,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[mcp] MyClaw Memory MCP server running");
+  console.error("[mcp] Sam Memory MCP server running");
 }
 
 main().catch((err) => {

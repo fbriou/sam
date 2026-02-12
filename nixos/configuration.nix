@@ -3,7 +3,7 @@
 {
   imports = [
     (modulesPath + "/profiles/qemu-guest.nix")
-    ./myclaw.nix
+    ./sam.nix
   ];
 
   # System settings
@@ -26,7 +26,7 @@
 
   # Networking
   networking = {
-    hostName = "myclaw";
+    hostName = "sam";
     firewall = {
       enable = true;
       allowedTCPPorts = [ 22 ];
@@ -59,12 +59,12 @@
     ];
   };
 
-  users.users.myclaw = {
+  users.users.sam = {
     isNormalUser = true;
-    description = "MyClaw service user";
-    home = "/var/lib/myclaw";
+    description = "Sam service user";
+    home = "/var/lib/sam";
     createHome = true;
-    group = "myclaw";
+    group = "sam";
   };
 
   # Essential packages
@@ -76,7 +76,7 @@
     htop
     vim
 
-    # Node.js for MyClaw
+    # Node.js for Sam
     nodejs_22
     nodePackages.npm
 

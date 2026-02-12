@@ -12,8 +12,8 @@
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/fbriou/sam.git myclaw
-cd myclaw
+git clone https://github.com/fbriou/sam.git sam
+cd sam
 ```
 
 ### 2. Install dependencies
@@ -46,7 +46,7 @@ mkdir -p vault/memories vault/skills
 
 Or link to your Google Drive vault (see [google-drive.md](google-drive.md)):
 ```bash
-ln -s "$HOME/Google Drive/My Drive/myclaw-vault" ./vault
+ln -s "$HOME/Google Drive/My Drive/sam-vault" ./vault
 ```
 
 ### 5. Initial embedding (optional)
@@ -64,13 +64,13 @@ npm run dev
 
 You should see:
 ```
-[myclaw] Starting MyClaw...
-[myclaw] Environment: development
-[myclaw] Database initialized
+[sam] Starting Sam...
+[sam] Environment: development
+[sam] Database initialized
 [telegram] Starting bot in long polling mode...
 [telegram] Bot is running
 [heartbeat] Heartbeat started (*/30 * * * *, Europe/Paris)
-[myclaw] All systems booted. Ready.
+[sam] All systems booted. Ready.
 ```
 
 ### 7. Test

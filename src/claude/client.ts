@@ -1,109 +1,80 @@
-import { spawn } from "child_process";
 import { join } from "path";
+import { readFileSync } from "fs";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+import type { SDKResultSuccess } from "@anthropic-ai/claude-agent-sdk";
 
 export interface ClaudeResult {
   text: string;
   sessionId: string;
 }
 
-export interface ClaudeOptions {
-  sessionId?: string;
-  outputFormat?: "json" | "text" | "stream-json";
-  maxTurns?: number;
-  appendSystemPrompt?: string;
-  model?: string;
-  cwd?: string;
-}
+// Load Sam's personality once at startup
+const runtimeDir = join(process.cwd(), "runtime");
+const samPrompt = readFileSync(join(runtimeDir, "CLAUDE.md"), "utf-8");
 
 /**
- * Spawn the Claude Code CLI in print mode (-p) and return the response.
+ * Ask Claude via the Agent SDK.
  *
- * This is the core integration point: every Telegram message becomes a
- * `claude -p` invocation. Claude Code automatically loads CLAUDE.md,
- * MCP servers from .claude/settings.json, and skills from .claude/skills/.
- *
- * Sessions are keyed by Telegram chat ID so each conversation has continuity.
+ * - systemPrompt: Sam personality loaded directly (avoids CLAUDE.md hierarchy issues)
+ * - mcpServers: sam-memory configured explicitly (no settingSources needed)
+ * - WebSearch: enabled for online lookups
+ * - Session resume: for conversation continuity across messages
  */
-export function spawnClaude(
+export async function askClaude(
   message: string,
-  opts: ClaudeOptions = {}
+  opts: { sessionId?: string; model?: string } = {}
 ): Promise<ClaudeResult> {
-  return new Promise((resolve, reject) => {
-    const args = ["-p", message];
+  let text = "";
+  let resultSessionId = "";
 
-    // Output format defaults to json for structured parsing
-    args.push("--output-format", opts.outputFormat || "json");
-
-    // Session management: each Telegram chat gets its own session
-    if (opts.sessionId) {
-      args.push("--session-id", opts.sessionId);
-    }
-
-    // Limit agentic turns to prevent runaway execution
-    if (opts.maxTurns) {
-      args.push("--max-turns", String(opts.maxTurns));
-    }
-
-    // Additional system prompt (appended to CLAUDE.md context)
-    if (opts.appendSystemPrompt) {
-      args.push("--append-system-prompt", opts.appendSystemPrompt);
-    }
-
-    // Model override (useful for switching to Haiku for simple queries)
-    if (opts.model) {
-      args.push("--model", opts.model);
-    }
-
-    const proc = spawn("claude", args, {
-      cwd: opts.cwd || join(process.cwd(), "runtime"),
-      env: { ...process.env },
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    proc.stdout.on("data", (data: Buffer) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on("data", (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    proc.on("error", (err) => {
-      reject(
-        new Error(
-          `Failed to spawn claude CLI: ${err.message}. Is Claude Code installed?`
-        )
-      );
-    });
-
-    proc.on("close", (code) => {
-      if (code !== 0) {
-        return reject(
-          new Error(`claude exited with code ${code}: ${stderr.trim()}`)
-        );
-      }
-
-      try {
-        if (opts.outputFormat === "text") {
-          resolve({ text: stdout.trim(), sessionId: "" });
-          return;
-        }
-
-        const json = JSON.parse(stdout);
-        resolve({
-          text: json.result || json.content || stdout.trim(),
-          sessionId: json.session_id || "",
-        });
-      } catch {
-        // If JSON parsing fails, return raw output
-        resolve({ text: stdout.trim(), sessionId: "" });
-      }
-    });
-
-    // Close stdin — claude -p reads the prompt from args, not stdin
-    proc.stdin.end();
+  const q = query({
+    prompt: message,
+    options: {
+      systemPrompt: samPrompt,
+      cwd: runtimeDir,
+      mcpServers: {
+        "sam-memory": {
+          command: "node",
+          args: [join(runtimeDir, "../dist/mcp/server.js")],
+          env: {
+            VAULT_PATH: join(runtimeDir, "../vault"),
+            DB_PATH: join(runtimeDir, "../data/sam.db"),
+          },
+        },
+      },
+      tools: ["WebSearch", "AskUserQuestion", "TodoWrite", "TaskOutput"],
+      allowedTools: [
+        "WebSearch",
+        "AskUserQuestion",
+        "TodoWrite",
+        "TaskOutput",
+        "mcp__sam-memory__search_memory",
+        "mcp__sam-memory__get_recent_conversations",
+        "mcp__sam-memory__save_memory",
+      ],
+      maxTurns: 5,
+      permissionMode: "dontAsk",
+      ...(opts.model ? { model: opts.model } : {}),
+      ...(opts.sessionId ? { resume: opts.sessionId } : {}),
+    },
   });
+
+  try {
+    for await (const msg of q) {
+      if (msg.type === "result" && msg.subtype === "success") {
+        const success = msg as SDKResultSuccess;
+        text = success.result;
+        resultSessionId = success.session_id;
+      }
+    }
+  } catch (err) {
+    // If resume fails (stale session), retry without resume
+    if (opts.sessionId && err instanceof Error && err.message.includes("session")) {
+      console.log("[claude] Session resume failed, starting fresh session");
+      return askClaude(message, { ...opts, sessionId: undefined });
+    }
+    throw err;
+  }
+
+  return { text, sessionId: resultSessionId };
 }

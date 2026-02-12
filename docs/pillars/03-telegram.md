@@ -2,7 +2,7 @@
 
 ## Overview
 
-MyClaw uses a single Telegram bot built with [grammY](https://grammy.dev/) as the communication channel. The bot is a thin proxy: it receives messages, spawns `claude -p`, and sends back the response.
+Sam uses a single Telegram bot built with [grammY](https://grammy.dev/) as the communication channel. The bot is a thin proxy: it receives messages, spawns `claude -p`, and sends back the response.
 
 ## Architecture
 
@@ -69,4 +69,4 @@ Each Telegram chat gets its own Claude Code session via `--session-id <uuid>`. T
 
 ## Running
 
-The bot uses long polling (no inbound HTTP port required). Run locally with `npm run dev` or on the server via the `myclaw` systemd service.
+The bot uses long polling (no inbound HTTP port required). Run locally with `npm run dev` or on the server via the `sam` systemd service.

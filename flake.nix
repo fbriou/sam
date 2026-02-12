@@ -1,5 +1,5 @@
 {
-  description = "MyClaw NixOS configuration for Hetzner Cloud";
+  description = "Sam NixOS configuration for Hetzner Cloud";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
@@ -10,7 +10,7 @@
   };
 
   outputs = { self, nixpkgs, disko, ... }: {
-    nixosConfigurations.myclaw = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.sam = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
         disko.nixosModules.disko

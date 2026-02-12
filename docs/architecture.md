@@ -1,8 +1,8 @@
-# MyClaw Architecture
+# Sam Architecture
 
 ## Overview
 
-MyClaw is a personal AI assistant that communicates via Telegram, powered by Claude Code CLI. It's built around 4 pillars inspired by OpenClaw: Memory, Heartbeat, Telegram, and Skills.
+Sam is a personal AI assistant that communicates via Telegram, powered by Claude Code CLI. It's built around 4 pillars inspired by OpenClaw: Memory, Heartbeat, Telegram, and Skills.
 
 ## Architecture Diagram
 

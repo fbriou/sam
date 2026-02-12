@@ -1,5 +1,5 @@
 {
-  "name": "myclaw",
+  "name": "sam",
   "version": "0.1.0",
   "description": "Personal AI assistant powered by Claude Code, Telegram, and Obsidian",
   "type": "module",
@@ -19,6 +19,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.39",
     "@anthropic-ai/sdk": "^0.74.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "better-sqlite3": "^12.6.2",
