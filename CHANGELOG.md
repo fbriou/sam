@@ -27,3 +27,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Updated**: `src/index.ts` — Wire Telegram bot into boot sequence with graceful shutdown
 - **Added**: `docs/pillars/03-telegram.md` — Telegram pillar deep dive
 - **Added**: `docs/setup/telegram-bot.md` — BotFather setup guide
+
+### Phase 3 — Memory System (2026-02-12)
+
+- **Added**: `src/memory/vault.ts` — Vault reader with recursive file listing and smart chunking (heading + paragraph splits)
+- **Added**: `src/memory/embeddings.ts` — Anthropic Voyage API embeddings (single, batch, query modes)
+- **Added**: `src/memory/rag.ts` — SQLite + sqlite-vec RAG: store chunks, remove by file, semantic search
+- **Added**: `src/mcp/server.ts` — Custom MCP server exposing `search_memory`, `get_recent_conversations`, `save_memory` tools
+- **Added**: `scripts/embed-vault.ts` — One-time vault embedding script
+- **Added**: `vault/soul.md` — Initial assistant personality definition
+- **Added**: `vault/user.md` — User profile template
+- **Added**: `vault/heartbeat.md` — Proactive check checklist
+- **Added**: `docs/pillars/01-memory.md` — Memory system deep dive (RAG pipeline, MCP tools, vault sync)
+- **Added**: `docs/setup/google-drive.md` — Google Drive + rclone configuration guide
