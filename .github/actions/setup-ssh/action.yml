@@ -13,5 +13,8 @@ runs:
       shell: bash
       run: |
         mkdir -p ~/.ssh
-        echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_ed25519
+        # Write key, strip carriage returns, ensure trailing newline
+        printf '%s\n' "${{ inputs.ssh_private_key }}" | tr -d '\r' > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
+        # Verify key is loadable
+        ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null 2>&1 && echo "SSH key verified OK" || echo "::warning::SSH key format issue detected"
