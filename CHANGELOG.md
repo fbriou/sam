@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Task Tracking + Sync + Restore (2026-02-13)
+
+- **Added**: `manage_tasks` MCP tool — Add, complete, and list tasks in `vault/tasks.md` (Obsidian-compatible format)
+- **Updated**: `src/claude/client.ts` — Registered `manage_tasks` in Agent SDK allowed tools
+- **Updated**: `runtime/CLAUDE.md` — Instructed Sam to proactively track tasks via MCP
+- **Added**: `scripts/sync.sh` — Local rclone sync script (pull/push vault and DB from Google Drive)
+- **Added**: `scripts/restore.sh` — Full restore from Google Drive backups (cross-platform, idempotent)
+- **Updated**: `nixos/sam.nix` — Added `sam-tasks-push` timer, excluded `tasks.md` from vault pull
+- **Updated**: Documentation — architecture, memory pillar, Google Drive setup, disaster recovery, backup strategy
+
 ### Agent SDK Migration + Rename (2026-02-12)
 
 - **Replaced**: `src/claude/client.ts` — Replaced `claude -p` subprocess with `@anthropic-ai/claude-agent-sdk` `query()` function

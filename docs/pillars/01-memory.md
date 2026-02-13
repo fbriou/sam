@@ -31,6 +31,7 @@ Claude Code (when answering your questions)
 | `user.md` | Your preferences, projects, context | You |
 | `heartbeat.md` | Proactive check checklist | You |
 | `memories/*.md` | Daily conversation summaries | Bot (auto-generated) |
+| `tasks.md` | Task tracking (Obsidian-compatible) | Bot (via MCP) |
 | `skills/*.md` | Skill definitions | You |
 
 ## How RAG Works
@@ -71,6 +72,7 @@ The MCP server exposes three tools to Claude Code:
 | `search_memory(query, limit?)` | Semantic search over all vault content and past conversations |
 | `get_recent_conversations(n?)` | Get the last N messages for immediate context |
 | `save_memory(content, source?)` | Manually save a fact for future recall |
+| `manage_tasks(action, text?, priority?, due?)` | Add, complete, or list tasks in `vault/tasks.md` |
 
 Configured in `.claude/settings.json`:
 ```json
@@ -99,9 +101,10 @@ This reads all vault `.md` files, chunks them, embeds via Voyage API, and stores
 See [Google Drive Setup](../setup/google-drive.md) for details.
 
 Summary:
-- **Local**: Edit vault in Obsidian → Google Drive Desktop syncs to cloud
-- **VPS**: rclone cron pulls from Google Drive every 5 minutes
+- **Local**: rclone sync via `scripts/sync.sh pull` / `push`
+- **Server**: rclone systemd timers pull vault and push memories/tasks every 5 min
 - **Memories**: Bot writes to `memories/` → rclone pushes back to Google Drive
+- **Tasks**: Bot writes to `tasks.md` → rclone pushes back to Google Drive
 
 ## Auto-Summarization (`src/memory/summarizer.ts`)
 

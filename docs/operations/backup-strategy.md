@@ -9,8 +9,9 @@ Sam uses a partitioned backup approach: different data types are backed up diffe
 | Data | Method | Frequency | Retention | Location |
 |------|--------|-----------|-----------|----------|
 | Code | Git push | Every commit | Unlimited | GitHub |
-| Vault (your edits) | Google Drive Desktop | Instant | Google Drive history | Google Drive |
+| Vault (your edits) | rclone sync | Manual (`sync.sh push`) | Google Drive history | Google Drive |
 | Vault (memories) | rclone push | Every 5 min | Unlimited | Google Drive |
+| Vault (tasks.md) | rclone push | Every 5 min | Unlimited | Google Drive |
 | SQLite DB | rclone copy | Daily (3:00) | Latest | Google Drive |
 | .env secrets | Manual | On change | Latest | GitHub Secrets |
 
@@ -66,7 +67,7 @@ rclone sync /var/lib/sam/vault/memories/ gdrive:vault/memories/ --config /var/li
 ### Why partitioned?
 
 - **You** write: soul.md, user.md, heartbeat.md, skills/ — via Obsidian
-- **Bot** writes: memories/ — via auto-summarization
+- **Bot** writes: memories/, tasks.md — via auto-summarization and task tracking
 
 No sync conflicts because each side owns different files.
 
@@ -100,14 +101,14 @@ sudo -u sam rclone copy /var/lib/sam/data/sam.db gdrive:backups/sam/ --config /v
 
 See [disaster-recovery.md](disaster-recovery.md) for full recovery procedures.
 
-Quick restore:
+Quick restore (local or server):
 ```bash
-# Restore vault
-sudo -u sam rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf
+# Full restore from Google Drive
+./scripts/restore.sh
 
-# Restore DB
-sudo -u sam rclone copy gdrive:backups/sam/sam.db /var/lib/sam/data/ --config /var/lib/sam/.config/rclone/rclone.conf
+# Or with re-embedding
+./scripts/restore.sh --embed
 
-# Re-embed if DB is missing or corrupted
-cd /var/lib/sam/app && sudo -u sam node dist/scripts/embed-vault.js
+# On the server
+ssh root@<ip> "cd /var/lib/sam/app && sudo -u sam bash scripts/restore.sh --embed"
 ```

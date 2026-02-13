@@ -42,7 +42,7 @@
       Type = "oneshot";
       User = "sam";
       Group = "sam";
-      ExecStart = "${pkgs.rclone}/bin/rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf --exclude memories/** --log-level NOTICE";
+      ExecStart = "${pkgs.rclone}/bin/rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf --exclude memories/** --exclude tasks.md --log-level NOTICE";
     };
   };
 
@@ -69,6 +69,27 @@
 
   systemd.timers.sam-vault-push = {
     description = "Push memories to Google Drive every 5 minutes";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "3min";
+      OnUnitActiveSec = "5min";
+      RandomizedDelaySec = "30s";
+    };
+  };
+
+  # Push tasks to Google Drive (every 5 minutes, alongside memories)
+  systemd.services.sam-tasks-push = {
+    description = "Push tasks to Google Drive";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "sam";
+      Group = "sam";
+      ExecStart = "${pkgs.rclone}/bin/rclone copy /var/lib/sam/vault/tasks.md gdrive:vault/ --config /var/lib/sam/.config/rclone/rclone.conf --log-level NOTICE";
+    };
+  };
+
+  systemd.timers.sam-tasks-push = {
+    description = "Push tasks to Google Drive every 5 minutes";
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "3min";

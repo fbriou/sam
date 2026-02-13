@@ -51,6 +51,7 @@ export async function askClaude(
         "mcp__sam-memory__search_memory",
         "mcp__sam-memory__get_recent_conversations",
         "mcp__sam-memory__save_memory",
+        "mcp__sam-memory__manage_tasks",
       ],
       maxTurns: 5,
       permissionMode: "dontAsk",

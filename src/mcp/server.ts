@@ -6,6 +6,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join } from "path";
 import { searchMemory } from "../memory/rag.js";
 
 /**
@@ -110,6 +112,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["content"],
+        },
+      },
+      {
+        name: "manage_tasks",
+        description:
+          "Add, complete, or list tasks/todos. Tasks are stored in the vault as Obsidian-friendly markdown. " +
+          "Use this when the user mentions something to do, a reminder, or a task.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: {
+              type: "string",
+              enum: ["add", "complete", "list"],
+              description:
+                "The action: add a new task, complete an existing one, or list all open tasks",
+            },
+            text: {
+              type: "string",
+              description:
+                "For 'add': the task description. For 'complete': text to match against existing tasks.",
+            },
+            priority: {
+              type: "string",
+              enum: ["high", "medium", "low"],
+              description: "Priority level for new tasks (default: medium)",
+            },
+            due: {
+              type: "string",
+              description: "Optional due date in YYYY-MM-DD format",
+            },
+          },
+          required: ["action"],
         },
       },
     ],
@@ -219,6 +253,105 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+      }
+
+      case "manage_tasks": {
+        const { action, text, priority = "medium", due } =
+          request.params.arguments as {
+            action: "add" | "complete" | "list";
+            text?: string;
+            priority?: string;
+            due?: string;
+          };
+
+        const tasksPath = join(VAULT_PATH, "tasks.md");
+
+        // Read or initialize tasks file
+        let tasksContent: string;
+        if (existsSync(tasksPath)) {
+          tasksContent = readFileSync(tasksPath, "utf-8");
+        } else {
+          tasksContent = "# Tasks\n";
+        }
+
+        switch (action) {
+          case "add": {
+            if (!text) {
+              return {
+                content: [
+                  { type: "text", text: "Error: 'text' is required to add a task." },
+                ],
+                isError: true,
+              };
+            }
+            const parts = [`- [ ] ${text} #${priority}`];
+            if (due) parts.push(`[due:: ${due}]`);
+            const taskLine = parts.join(" ");
+            tasksContent = tasksContent.trimEnd() + "\n" + taskLine + "\n";
+            writeFileSync(tasksPath, tasksContent, "utf-8");
+            return {
+              content: [{ type: "text", text: `Task added: ${taskLine}` }],
+            };
+          }
+          case "complete": {
+            if (!text) {
+              return {
+                content: [
+                  { type: "text", text: "Error: 'text' is required to identify the task." },
+                ],
+                isError: true,
+              };
+            }
+            const lines = tasksContent.split("\n");
+            let found = false;
+            const today = new Date().toISOString().split("T")[0];
+            for (let i = 0; i < lines.length; i++) {
+              if (
+                lines[i].includes("- [ ]") &&
+                lines[i].toLowerCase().includes(text.toLowerCase())
+              ) {
+                lines[i] =
+                  lines[i].replace("- [ ]", "- [x]") +
+                  ` [completed:: ${today}]`;
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: `No matching open task found for: "${text}"`,
+                  },
+                ],
+              };
+            }
+            writeFileSync(tasksPath, lines.join("\n"), "utf-8");
+            return {
+              content: [{ type: "text", text: "Task completed." }],
+            };
+          }
+          case "list": {
+            const openTasks = tasksContent
+              .split("\n")
+              .filter((l) => l.includes("- [ ]"));
+            if (openTasks.length === 0) {
+              return {
+                content: [{ type: "text", text: "No open tasks." }],
+              };
+            }
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Open tasks (${openTasks.length}):\n\n${openTasks.join("\n")}`,
+                },
+              ],
+            };
+          }
+        }
+        break;
       }
 
       default:

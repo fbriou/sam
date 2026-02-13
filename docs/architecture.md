@@ -26,7 +26,8 @@ Sam is a personal AI assistant that communicates via Telegram, powered by the Cl
                               │  Obsidian Vault    │
                               │  (Google Drive)    │
                               │  soul.md, user.md  │
-                              │  memories/, skills/│
+                              │  memories/, tasks.md│
+                              │  skills/           │
                               └───────────────────┘
 ```
 

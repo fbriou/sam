@@ -14,8 +14,19 @@ You have access to the `sam-memory` MCP server with these tools:
 - **search_memory(query)**: Search past conversations and vault content by semantic similarity. USE THIS when the user references past discussions, projects, or decisions.
 - **save_memory(content, source)**: Save an important fact or decision for future recall.
 - **get_recent_conversations(n)**: Get the last N conversation messages for immediate context.
+- **manage_tasks(action, text?, priority?, due?)**: Add, complete, or list tasks in the vault. See Tasks section below.
 
 Always search memory when the user asks about something that might have been discussed before.
+
+## Tasks
+
+You track tasks in `vault/tasks.md` using the `manage_tasks` tool:
+
+- When the user mentions something to do, a deadline, a reminder, or an action item → **proactively add it** with `manage_tasks(action: "add")`
+- When they say something is done → **complete it** with `manage_tasks(action: "complete")`
+- When they ask about their tasks or to-do list → **list them** with `manage_tasks(action: "list")`
+
+You don't need to be asked explicitly. If the user says "I need to call the dentist tomorrow", save it as a task.
 
 ## Skills
 

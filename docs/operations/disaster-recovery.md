@@ -13,6 +13,7 @@ The server is 100% disposable. Run the full deploy workflow and everything is re
 | **Terraform state** | GitHub Actions cache | — | Full deploy recreates resources |
 | **vault/** (soul, user, skills) | Google Drive | Obsidian (local Mac) | rclone pulls from Drive |
 | **vault/memories/** | Generated on server | Google Drive (rclone pushes) | rclone pulls from Drive |
+| **vault/tasks.md** | Generated on server | Google Drive (rclone pushes) | rclone pulls from Drive |
 | **SQLite DB** | Server `/var/lib/sam/data/` | Google Drive (daily backup) | rclone pulls backup |
 | **.env secrets** | Server `/var/lib/sam/.env` | GitHub Secrets (source of truth) | Deploy workflow assembles it |
 
@@ -64,11 +65,14 @@ ssh root@<new-ip> "nano /var/lib/sam/.env"
 # Deploy rclone config
 scp ~/.config/rclone/rclone.conf root@<new-ip>:/var/lib/sam/.config/rclone/
 
-# Pull vault from Google Drive
-ssh root@<new-ip> "sudo -u sam rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.config/rclone/rclone.conf"
+# Restore vault + DB from Google Drive
+ssh root@<new-ip> "cd /var/lib/sam/app && sudo -u sam bash scripts/restore.sh"
+```
 
-# Pull latest DB backup
-ssh root@<new-ip> "sudo -u sam rclone copy gdrive:backups/sam/sam.db /var/lib/sam/data/ --config /var/lib/sam/.config/rclone/rclone.conf"
+Or from your local machine:
+```bash
+./scripts/restore.sh           # Full restore (vault + DB)
+./scripts/restore.sh --check   # Verify backups exist first
 ```
 
 #### 5. Start and verify
