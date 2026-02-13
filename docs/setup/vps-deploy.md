@@ -2,7 +2,7 @@
 
 ## Overview
 
-Sam runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment is fully automated via 3 GitHub Actions workflows:
+Sam runs natively on a NixOS server (Hetzner Cloud CX33, ~€5/mo). Deployment is fully automated via 3 GitHub Actions workflows:
 
 - **Quick Deploy** (`quick-deploy.yml`, ~2 min): Update code + NixOS config on existing server. Auto-triggers on push to main.
 - **Full Deploy** (`full-deploy.yml`, ~15 min): Create server from scratch with OpenTofu + nixos-anywhere. Manual only, requires `production` environment approval.
@@ -22,10 +22,10 @@ Shared logic lives in composite actions under `.github/actions/` (setup-hcloud, 
 
 ## Server Specs
 
-- **Type**: CX22 (2 vCPU, 4GB RAM, 40GB disk)
+- **Type**: CX33 (2 vCPU, 4GB RAM, 40GB disk)
 - **OS**: NixOS 24.11
 - **Location**: Nuremberg, Germany (nbg1)
-- **Cost**: ~€4/month
+- **Cost**: ~€5/month
 - **Firewall**: SSH only (port 22), ICMP
 
 ## GitHub Secrets Required
