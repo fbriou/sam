@@ -1,10 +1,34 @@
+import { execSync } from "child_process";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { getConfig } from "./config.js";
 import { getDb, closeDb } from "./db/client.js";
 import { createBot, startBot } from "./telegram/bot.js";
 import { startHeartbeat } from "./heartbeat/runner.js";
 
+function syncFromGoogleDrive() {
+  const projectDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const syncScript = join(projectDir, "scripts", "sync.sh");
+
+  try {
+    console.log("[sam] Syncing vault from Google Drive...");
+    execSync(`bash "${syncScript}" pull`, {
+      stdio: "inherit",
+      timeout: 60_000,
+    });
+    console.log("[sam] Sync complete.");
+  } catch (err) {
+    console.warn(
+      "[sam] Google Drive sync skipped (rclone not configured or sync failed). Continuing with local data."
+    );
+  }
+}
+
 async function main() {
   console.log("[sam] Starting Sam...");
+
+  // Sync vault + DB from Google Drive before boot
+  syncFromGoogleDrive();
 
   // Load and validate config
   const config = getConfig();

@@ -5,8 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Google Drive Tools + Bash Access (2026-02-13)
+
+- **Added**: Google Drive MCP tools — `gdrive_create_file`, `gdrive_list`, `gdrive_read`, `gdrive_delete` (wraps rclone)
+- **Added**: Bash tool — Sam can now execute shell commands when asked
+- **Updated**: `src/claude/client.ts` — Registered Bash + Google Drive MCP tools
+- **Updated**: `runtime/CLAUDE.md` — Added Google Drive and Shell Access sections
+
 ### Task Tracking + Sync + Restore (2026-02-13)
 
+- **Added**: Automatic Google Drive sync on startup — `npm run dev` pulls vault + DB before booting
 - **Added**: `manage_tasks` MCP tool — Add, complete, and list tasks in `vault/tasks.md` (Obsidian-compatible format)
 - **Updated**: `src/claude/client.ts` — Registered `manage_tasks` in Agent SDK allowed tools
 - **Updated**: `runtime/CLAUDE.md` — Instructed Sam to proactively track tasks via MCP

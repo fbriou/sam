@@ -65,7 +65,7 @@ When Claude Code calls `search_memory(query)`:
 
 ## MCP Server
 
-The MCP server exposes three tools to Claude Code:
+The MCP server exposes memory and Google Drive tools to Claude:
 
 | Tool | Purpose |
 |------|---------|
@@ -73,6 +73,10 @@ The MCP server exposes three tools to Claude Code:
 | `get_recent_conversations(n?)` | Get the last N messages for immediate context |
 | `save_memory(content, source?)` | Manually save a fact for future recall |
 | `manage_tasks(action, text?, priority?, due?)` | Add, complete, or list tasks in `vault/tasks.md` |
+| `gdrive_create_file(path, content)` | Create a file on Google Drive via rclone |
+| `gdrive_list(path?)` | List files/folders on Google Drive |
+| `gdrive_read(path)` | Read a file from Google Drive |
+| `gdrive_delete(path)` | Delete a file/folder from Google Drive |
 
 Configured in `.claude/settings.json`:
 ```json

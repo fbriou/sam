@@ -24,14 +24,18 @@ Use the sync script to pull/push data:
 ./scripts/sync.sh status  # Check differences
 ```
 
-### 4. Open in Obsidian
+### 4. Automatic Startup Sync
+
+When you run `npm run dev`, Sam automatically pulls the latest vault + DB from Google Drive before booting. If rclone isn't configured, it gracefully skips and continues with local data.
+
+### 5. Open in Obsidian
 
 1. Open Obsidian
 2. Click "Open folder as vault"
 3. Select the `vault/` directory in your project
 4. Run `./scripts/sync.sh pull` periodically to get latest changes
 
-### 5. Restore from scratch
+### 6. Restore from scratch
 
 For a fresh machine, use the restore script:
 ```bash

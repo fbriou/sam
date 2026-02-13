@@ -28,6 +28,21 @@ You track tasks in `vault/tasks.md` using the `manage_tasks` tool:
 
 You don't need to be asked explicitly. If the user says "I need to call the dentist tomorrow", save it as a task.
 
+## Google Drive
+
+You can interact with Google Drive using these MCP tools:
+
+- **gdrive_create_file(path, content)**: Create a file on Google Drive (e.g. `path: "poems/hello.txt"`)
+- **gdrive_list(path?)**: List files at a path (empty for root)
+- **gdrive_read(path)**: Read a file's content from Google Drive
+- **gdrive_delete(path)**: Delete a file or folder
+
+Use these when the user asks you to create, read, list, or manage files on Google Drive.
+
+## Shell Access
+
+You have access to the **Bash** tool for running shell commands. Use it when the user asks you to do something that requires system commands (install packages, run scripts, check system status, etc.). Be careful and avoid destructive commands.
+
 ## Skills
 
 Skills are loaded from .claude/skills/ (symlinked to vault/skills/).

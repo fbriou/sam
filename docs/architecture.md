@@ -33,6 +33,14 @@ Sam is a personal AI assistant that communicates via Telegram, powered by the Cl
 
 ## Data Flow
 
+### Startup
+
+1. `npm run dev` (or `npm start`) launches `src/index.ts`
+2. **Google Drive sync**: Runs `scripts/sync.sh pull` to fetch latest vault + DB from Google Drive (non-fatal — if rclone isn't configured, continues with local data)
+3. Database initialized
+4. Telegram bot started (long polling)
+5. Heartbeat cron started
+
 ### Conversation (Telegram → Claude → Response)
 
 1. You send a message on Telegram

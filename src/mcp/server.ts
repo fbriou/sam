@@ -7,6 +7,7 @@ import {
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
 import { readFileSync, writeFileSync, existsSync } from "fs";
+import { execSync } from "child_process";
 import { join } from "path";
 import { searchMemory } from "../memory/rag.js";
 
@@ -146,9 +147,83 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["action"],
         },
       },
+      {
+        name: "gdrive_create_file",
+        description:
+          "Create a file on Google Drive. The file is written locally first, then uploaded via rclone.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: {
+              type: "string",
+              description:
+                "Path on Google Drive (e.g. 'poems/hello.txt' or 'notes/idea.md')",
+            },
+            content: {
+              type: "string",
+              description: "The content to write into the file",
+            },
+          },
+          required: ["path", "content"],
+        },
+      },
+      {
+        name: "gdrive_list",
+        description:
+          "List files and folders on Google Drive at a given path.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: {
+              type: "string",
+              description:
+                "Path to list (e.g. '' for root, 'vault/' for vault folder). Default: root.",
+              default: "",
+            },
+          },
+        },
+      },
+      {
+        name: "gdrive_read",
+        description:
+          "Read the content of a file from Google Drive.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: {
+              type: "string",
+              description: "Path of the file on Google Drive (e.g. 'poems/hello.txt')",
+            },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "gdrive_delete",
+        description:
+          "Delete a file or folder from Google Drive.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: {
+              type: "string",
+              description: "Path to delete on Google Drive (e.g. 'poems/hello.txt')",
+            },
+          },
+          required: ["path"],
+        },
+      },
     ],
   };
 });
+
+// Helper: run rclone command and return output
+function rcloneExec(args: string): string {
+  return execSync(`rclone ${args}`, {
+    encoding: "utf-8",
+    timeout: 30_000,
+  }).trim();
+}
 
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -352,6 +427,125 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         }
         break;
+      }
+
+      case "gdrive_create_file": {
+        const { path: filePath, content } = request.params.arguments as {
+          path: string;
+          content: string;
+        };
+
+        const tmpDir = "/tmp/sam-gdrive";
+        const tmpFile = join(tmpDir, filePath);
+        const tmpFileDir = join(tmpDir, filePath, "..");
+        execSync(`mkdir -p "${tmpFileDir}"`);
+        writeFileSync(tmpFile, content, "utf-8");
+
+        const gdrivePath = filePath.includes("/")
+          ? filePath.substring(0, filePath.lastIndexOf("/"))
+          : "";
+        const dest = gdrivePath ? `gdrive:${gdrivePath}/` : "gdrive:";
+        rcloneExec(`copy "${tmpFile}" "${dest}"`);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `File created on Google Drive: ${filePath}`,
+            },
+          ],
+        };
+      }
+
+      case "gdrive_list": {
+        const { path: listPath = "" } = (request.params.arguments || {}) as {
+          path?: string;
+        };
+
+        const target = listPath ? `gdrive:${listPath}` : "gdrive:";
+        let output: string;
+        try {
+          output = rcloneExec(`lsf "${target}" --max-depth 1`);
+        } catch {
+          output = "(empty or path not found)";
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: output || "(empty folder)",
+            },
+          ],
+        };
+      }
+
+      case "gdrive_read": {
+        const { path: readPath } = request.params.arguments as {
+          path: string;
+        };
+
+        const tmpRead = `/tmp/sam-gdrive-read-${Date.now()}`;
+        try {
+          rcloneExec(`copy "gdrive:${readPath}" "${tmpRead}"`);
+          const fileName = readPath.split("/").pop()!;
+          const content = readFileSync(join(tmpRead, fileName), "utf-8");
+          execSync(`rm -rf "${tmpRead}"`);
+          return {
+            content: [{ type: "text", text: content }],
+          };
+        } catch {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `File not found on Google Drive: ${readPath}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+
+      case "gdrive_delete": {
+        const { path: deletePath } = request.params.arguments as {
+          path: string;
+        };
+
+        try {
+          rcloneExec(`deletefile "gdrive:${deletePath}"`);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Deleted from Google Drive: ${deletePath}`,
+              },
+            ],
+          };
+        } catch {
+          // Try as directory
+          try {
+            rcloneExec(`purge "gdrive:${deletePath}"`);
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Deleted folder from Google Drive: ${deletePath}`,
+                },
+              ],
+            };
+          } catch {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Not found on Google Drive: ${deletePath}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+        }
       }
 
       default:
