@@ -2,10 +2,13 @@
 
 ## Overview
 
-Sam runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment is fully automated via GitHub Actions with two modes:
+Sam runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment is fully automated via 3 GitHub Actions workflows:
 
-- **Quick deploy** (~2 min): Update code + NixOS config on existing server
-- **Full deploy** (~15 min): Create server from scratch with OpenTofu + nixos-anywhere
+- **Quick Deploy** (`quick-deploy.yml`, ~2 min): Update code + NixOS config on existing server. Auto-triggers on push to main.
+- **Full Deploy** (`full-deploy.yml`, ~15 min): Create server from scratch with OpenTofu + nixos-anywhere. Manual only, requires `production` environment approval.
+- **Destroy** (`destroy.yml`): Tear down all Hetzner resources. Manual with "destroy" confirmation.
+
+Shared logic lives in composite actions under `.github/actions/` (setup-hcloud, setup-ssh, deploy-app).
 
 ## Infrastructure
 
@@ -14,7 +17,7 @@ Sam runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment i
 | Server provisioning | OpenTofu (Hetzner Cloud provider) |
 | OS installation | nixos-anywhere (NixOS 24.11 + disko) |
 | Configuration | Nix flakes (`flake.nix`, `nixos/`) |
-| CI/CD | GitHub Actions (`.github/workflows/deploy.yml`) |
+| CI/CD | GitHub Actions (3 workflows + 3 composite actions) |
 | Secrets | GitHub Secrets → assembled into `.env` on server |
 
 ## Server Specs
@@ -27,18 +30,22 @@ Sam runs natively on a NixOS server (Hetzner Cloud CX22, ~€4/mo). Deployment i
 
 ## GitHub Secrets Required
 
-| Secret | Description |
-|--------|-------------|
-| `HETZNER_API_TOKEN` | Hetzner Cloud API token |
-| `SSH_PUBLIC_KEY` | Ed25519 public key |
-| `SSH_PRIVATE_KEY` | Ed25519 private key |
-| `ALLOWED_SSH_IP` | Your home IP in CIDR (e.g. 1.2.3.4/32) |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
-| `TELEGRAM_ALLOWED_IDS` | Comma-separated Telegram user IDs |
-| `TELEGRAM_CHAT_ID` | Chat ID for heartbeat delivery |
-| `WEBHOOK_SECRET` | Random string |
-| `RCLONE_CONFIG` | rclone.conf content (Google Drive remote) |
+Add these at: repo → Settings → Secrets and variables → Actions → New repository secret.
+
+| Secret | Description | How to get it |
+|--------|-------------|---------------|
+| `HETZNER_API_TOKEN` | Hetzner Cloud API token | [console.hetzner.cloud](https://console.hetzner.cloud/) → Security → API Tokens → Generate |
+| `SSH_PRIVATE_KEY` | Ed25519 private key | `cat ~/.ssh/id_ed25519` (or generate: `ssh-keygen -t ed25519`) |
+| `SSH_PUBLIC_KEY` | Ed25519 public key | `cat ~/.ssh/id_ed25519.pub` |
+| `ALLOWED_SSH_IP` | Your public IP in CIDR format | `curl -s https://api.ipify.org` then append `/32` (e.g. `86.123.45.67/32`) |
+| `ANTHROPIC_API_KEY` | Anthropic API key | From your `.env` or [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token | From your `.env` (created via @BotFather) |
+| `TELEGRAM_ALLOWED_IDS` | Comma-separated Telegram user IDs | From your `.env` (get IDs via @userinfobot) |
+| `TELEGRAM_CHAT_ID` | Chat ID for heartbeat delivery | From your `.env` (usually same as your user ID) |
+| `WEBHOOK_SECRET` | Random string (8+ chars) | `openssl rand -hex 16` or from your `.env` |
+| `RCLONE_CONFIG` | Full rclone config file content | `cat ~/.config/rclone/rclone.conf` |
+
+You also need a **`production` environment**: repo → Settings → Environments → New environment → name it `production`. This adds an approval gate on full-deploy and destroy.
 
 ## First-Time Setup
 
@@ -65,9 +72,13 @@ Copy the config: `cat ~/.config/rclone/rclone.conf` → save as `RCLONE_CONFIG` 
 
 Go to your repo → Settings → Secrets and variables → Actions → add each secret.
 
-### 5. Run full deploy
+### 5. Create `production` environment
 
-Trigger the Deploy workflow manually with `full` mode, or push to `main`.
+Go to repo → Settings → Environments → New environment → name: `production`.
+
+### 6. Run full deploy
+
+Go to GitHub → Actions → **Full Deploy Sam** → Run workflow.
 
 ## Day-to-Day Operations
 
@@ -93,13 +104,16 @@ sudo -u sam rclone sync gdrive:vault /var/lib/sam/vault --config /var/lib/sam/.c
 
 ## Updating
 
-Push to `main` triggers auto-deploy (quick mode). The workflow:
-1. Builds TypeScript in CI
-2. SCPs dist/, runtime/, package files to server
-3. Runs `npm ci --production` on server
-4. Updates NixOS config if changed
-5. Restarts the service
+Push to `main` triggers **Quick Deploy** automatically. The workflow:
+1. Checks server exists (fails fast if not)
+2. Adds temporary firewall rule for GitHub runner
+3. Updates NixOS config via `nixos-rebuild switch`
+4. Builds TypeScript in CI
+5. SCPs dist/, runtime/, package files to server
+6. Runs `npm ci --production` on server
+7. Restarts the service
+8. Removes temporary firewall rule
 
 ## Destroying
 
-Run the **Destroy Infrastructure** workflow (type "destroy" to confirm). This deletes the server, firewall, and SSH key from Hetzner.
+Run the **Destroy Sam Infrastructure** workflow (type "destroy" to confirm). This deletes the server, firewall, and SSH key from Hetzner. Requires `production` environment approval.
