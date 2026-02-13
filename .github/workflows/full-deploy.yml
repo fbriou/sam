@@ -1,0 +1,224 @@
+name: Full Deploy Sam
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: sam-deploy
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: '1.6.0'
+  TF_VAR_hcloud_token: ${{ secrets.HETZNER_API_TOKEN }}
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+  TF_VAR_allowed_ssh_ip: ${{ secrets.ALLOWED_SSH_IP }}
+
+jobs:
+  validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: tofu fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: tofu init -backend=false
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: tofu validate
+
+  deploy:
+    name: Full Deploy
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TF_VERSION }}
+
+      - name: Setup SSH
+        uses: ./.github/actions/setup-ssh
+        with:
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Setup hcloud CLI
+        uses: ./.github/actions/setup-hcloud
+
+      - name: Restore Terraform State
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            terraform/terraform.tfstate
+            terraform/terraform.tfstate.backup
+          key: terraform-state-${{ github.repository }}-
+          restore-keys: |
+            terraform-state-${{ github.repository }}-
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: tofu init
+
+      - name: Cleanup Existing Resources
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          echo "Full deploy: cleaning up existing Hetzner resources..."
+          hcloud server delete sam 2>/dev/null || true
+          hcloud firewall delete sam 2>/dev/null || true
+          hcloud ssh-key delete sam 2>/dev/null || true
+          echo "Cleanup complete"
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: tofu apply -auto-approve
+
+      - name: Save Terraform State
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            terraform/terraform.tfstate
+            terraform/terraform.tfstate.backup
+          key: terraform-state-${{ github.repository }}-${{ github.run_id }}
+
+      - name: Get Server Info
+        id: server
+        working-directory: terraform
+        run: |
+          echo "ip=$(tofu output -raw server_ip)" >> $GITHUB_OUTPUT
+          echo "firewall_id=$(tofu output -raw firewall_id)" >> $GITHUB_OUTPUT
+          echo "ssh_command=$(tofu output -raw ssh_command)" >> $GITHUB_OUTPUT
+
+      - name: Allow GitHub Runner SSH Access
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "GitHub Runner IP: $RUNNER_IP"
+          hcloud firewall add-rule ${{ steps.server.outputs.firewall_id }} \
+            --direction in \
+            --protocol tcp \
+            --port 22 \
+            --source-ips "$RUNNER_IP/32" \
+            --description "Temporary: GitHub Actions full deploy"
+          echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
+          echo "FIREWALL_ID=${{ steps.server.outputs.firewall_id }}" >> $GITHUB_ENV
+
+      - name: Wait for Server
+        run: |
+          echo "Waiting for server to be ready..."
+          sleep 60
+          for i in {1..30}; do
+            if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@${{ steps.server.outputs.ip }} "echo 'Server ready'" 2>/dev/null; then
+              echo "Server is ready!"
+              break
+            fi
+            echo "Attempt $i/30 — waiting..."
+            sleep 10
+          done
+
+      - name: Inject SSH Key into NixOS Config
+        run: |
+          sed -i 's|openssh.authorizedKeys.keys = \[|openssh.authorizedKeys.keys = [ "'"${{ secrets.SSH_PUBLIC_KEY }}"'" |' nixos/configuration.nix
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Install NixOS via nixos-anywhere
+        run: |
+          nix run github:nix-community/nixos-anywhere -- \
+            --flake .#sam \
+            --target-host root@${{ steps.server.outputs.ip }} \
+            --ssh-option "IdentityFile=~/.ssh/id_ed25519" \
+            --ssh-option "StrictHostKeyChecking=no" \
+            --ssh-option "UserKnownHostsFile=/dev/null" \
+            --ssh-option "ConnectTimeout=120" \
+            --ssh-option "ServerAliveInterval=15" \
+            --ssh-option "ServerAliveCountMax=20"
+          ssh-keygen -R ${{ steps.server.outputs.ip }} 2>/dev/null || true
+
+      - name: Wait for NixOS to Stabilize
+        run: |
+          echo "Waiting for NixOS to stabilize..."
+          sleep 30
+          SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+          for i in {1..10}; do
+            if ssh $SSH_OPTS root@${{ steps.server.outputs.ip }} "echo 'Server ready'" 2>/dev/null; then
+              echo "Server is ready!"
+              break
+            fi
+            echo "Attempt $i/10 — waiting..."
+            sleep 10
+          done
+
+      - name: Deploy Application
+        uses: ./.github/actions/deploy-app
+        with:
+          server_ip: ${{ steps.server.outputs.ip }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram_allowed_ids: ${{ secrets.TELEGRAM_ALLOWED_IDS }}
+          telegram_chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
+          rclone_config: ${{ secrets.RCLONE_CONFIG }}
+
+      - name: Health Check
+        run: |
+          SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          sleep 5
+          ssh $SSH_OPTS root@${{ steps.server.outputs.ip }} << 'EOF'
+            echo "=== System ==="
+            echo "Hostname: $(hostname)"
+            echo "Uptime: $(uptime)"
+            echo ""
+            echo "=== Sam Service ==="
+            systemctl is-active sam && echo "Status: running" || echo "Status: not running"
+            echo ""
+            echo "=== Timers ==="
+            systemctl list-timers sam-* --no-pager 2>/dev/null || true
+            echo ""
+            echo "=== Recent Logs ==="
+            journalctl -u sam --no-pager -n 10 2>/dev/null || true
+          EOF
+
+      - name: Remove Temporary Firewall Rule
+        if: always()
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          if [ -n "$RUNNER_IP" ] && [ -n "$FIREWALL_ID" ]; then
+            hcloud firewall delete-rule $FIREWALL_ID \
+              --direction in \
+              --protocol tcp \
+              --port 22 \
+              --source-ips "$RUNNER_IP/32" || true
+          fi
+
+      - name: Deploy Summary
+        run: |
+          echo "## Full Deploy Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Server IP:** \`${{ steps.server.outputs.ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**SSH:** \`${{ steps.server.outputs.ssh_command }}\`" >> $GITHUB_STEP_SUMMARY

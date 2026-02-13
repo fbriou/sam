@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Split Deployment into 3 Workflows (2026-02-13)
+
+- **Added**: `quick-deploy.yml` — Fast deploy to existing server (auto-triggers on push to main)
+- **Added**: `full-deploy.yml` — Fresh server from scratch with Terraform + nixos-anywhere (manual only)
+- **Updated**: `destroy.yml` — Added concurrency group, fixed terraform state cache key, merged confirm job
+- **Added**: `.github/actions/setup-hcloud/` — Composite action: install hcloud CLI
+- **Added**: `.github/actions/setup-ssh/` — Composite action: configure SSH key
+- **Added**: `.github/actions/deploy-app/` — Composite action: build, deploy, env file, rclone, restart
+- **Removed**: `deploy.yml` — Replaced by quick-deploy + full-deploy
+- **Fixed**: `.env` heredoc indentation bug (leading whitespace from YAML leaked into env values)
+- **Added**: Concurrency group `sam-deploy` on all workflows to prevent parallel deploys
+- **Added**: Timeout limits on all jobs (5/10/15/30 min)
+
 ### Google Drive Tools + Bash Access (2026-02-13)
 
 - **Added**: Google Drive MCP tools — `gdrive_create_file`, `gdrive_list`, `gdrive_read`, `gdrive_delete` (wraps rclone)

@@ -1,0 +1,123 @@
+name: Deploy Sam Application
+description: Build and deploy the Sam application to the server
+
+inputs:
+  server_ip:
+    description: Server IPv4 address
+    required: true
+  anthropic_api_key:
+    description: Anthropic API key
+    required: true
+  telegram_bot_token:
+    description: Telegram bot token
+    required: true
+  telegram_allowed_ids:
+    description: Comma-separated Telegram user IDs
+    required: true
+  telegram_chat_id:
+    description: Telegram chat ID for heartbeat
+    required: true
+  webhook_secret:
+    description: Webhook secret
+    required: true
+  rclone_config:
+    description: rclone config file content (optional)
+    required: false
+    default: ''
+  claude_model:
+    description: Claude model for conversations
+    required: false
+    default: claude-sonnet-4-5-20250929
+  heartbeat_model:
+    description: Claude model for heartbeat
+    required: false
+    default: claude-haiku-4-5-20251001
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Build Application
+      shell: bash
+      run: |
+        npm ci
+        npx tsc
+
+    - name: Deploy Application Files
+      shell: bash
+      run: |
+        SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        SERVER_IP="${{ inputs.server_ip }}"
+
+        echo "Deploying application files..."
+        ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/app/runtime/.claude"
+
+        scp $SSH_OPTS -r dist root@$SERVER_IP:/var/lib/sam/app/
+        scp $SSH_OPTS package.json package-lock.json root@$SERVER_IP:/var/lib/sam/app/
+        scp $SSH_OPTS -r runtime root@$SERVER_IP:/var/lib/sam/app/
+
+        echo "Installing production dependencies..."
+        ssh $SSH_OPTS root@$SERVER_IP "cd /var/lib/sam/app && npm ci --production"
+
+        echo "Installing Claude Code CLI..."
+        ssh $SSH_OPTS root@$SERVER_IP "npm install -g @anthropic-ai/claude-code"
+
+        ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/app"
+
+    - name: Deploy Environment File
+      shell: bash
+      run: |
+        SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        SERVER_IP="${{ inputs.server_ip }}"
+
+        cat > /tmp/sam.env << 'ENVEOF'
+        ANTHROPIC_API_KEY=${{ inputs.anthropic_api_key }}
+        TELEGRAM_BOT_TOKEN=${{ inputs.telegram_bot_token }}
+        TELEGRAM_ALLOWED_IDS=${{ inputs.telegram_allowed_ids }}
+        TELEGRAM_CHAT_ID=${{ inputs.telegram_chat_id }}
+        WEBHOOK_SECRET=${{ inputs.webhook_secret }}
+        VAULT_PATH=/var/lib/sam/vault
+        DB_PATH=/var/lib/sam/data/sam.db
+        NODE_ENV=production
+        ACTIVE_HOURS_START=08:00
+        ACTIVE_HOURS_END=22:00
+        ACTIVE_HOURS_TZ=Europe/Paris
+        HEARTBEAT_INTERVAL_CRON=*/30 * * * *
+        CLAUDE_MODEL=${{ inputs.claude_model }}
+        HEARTBEAT_MODEL=${{ inputs.heartbeat_model }}
+        ENVEOF
+
+        # Fix leading whitespace from YAML heredoc indentation
+        sed -i 's/^[[:space:]]*//' /tmp/sam.env
+        # Remove empty lines
+        sed -i '/^$/d' /tmp/sam.env
+
+        scp $SSH_OPTS /tmp/sam.env root@$SERVER_IP:/var/lib/sam/.env
+        ssh $SSH_OPTS root@$SERVER_IP "chown sam:sam /var/lib/sam/.env && chmod 600 /var/lib/sam/.env"
+        rm -f /tmp/sam.env
+
+    - name: Deploy rclone Config
+      shell: bash
+      run: |
+        SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        SERVER_IP="${{ inputs.server_ip }}"
+
+        if [ -n "${{ inputs.rclone_config }}" ]; then
+          echo "Deploying rclone configuration..."
+          ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/.config/rclone"
+          printf '%s' "${{ inputs.rclone_config }}" > /tmp/rclone.conf
+          scp $SSH_OPTS /tmp/rclone.conf root@$SERVER_IP:/var/lib/sam/.config/rclone/rclone.conf
+          ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/.config && chmod 600 /var/lib/sam/.config/rclone/rclone.conf"
+          rm -f /tmp/rclone.conf
+        fi
+
+    - name: Restart Sam Service
+      shell: bash
+      run: |
+        SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        ssh $SSH_OPTS root@${{ inputs.server_ip }} "systemctl restart sam"
+        echo "Sam service restarted"

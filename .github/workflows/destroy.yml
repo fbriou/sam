@@ -1,4 +1,4 @@
-name: Destroy Infrastructure
+name: Destroy Sam Infrastructure
 
 on:
   workflow_dispatch:
@@ -8,6 +8,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: sam-deploy
+  cancel-in-progress: false
+
 env:
   TF_VERSION: '1.6.0'
   TF_VAR_hcloud_token: ${{ secrets.HETZNER_API_TOKEN }}
@@ -15,21 +19,12 @@ env:
   TF_VAR_allowed_ssh_ip: ${{ secrets.ALLOWED_SSH_IP }}
 
 jobs:
-  confirm:
-    name: Confirm Destruction
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check Confirmation
-        if: github.event.inputs.confirm != 'destroy'
-        run: |
-          echo "::error::You must type 'destroy' to confirm infrastructure destruction"
-          exit 1
-
   destroy:
     name: Destroy Infrastructure
-    needs: confirm
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: production
+    if: github.event.inputs.confirm == 'destroy'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,25 +40,21 @@ jobs:
           path: |
             terraform/terraform.tfstate
             terraform/terraform.tfstate.backup
-          key: terraform-state-${{ github.repository }}
+          key: terraform-state-${{ github.repository }}-
+          restore-keys: |
+            terraform-state-${{ github.repository }}-
 
       - name: Terraform Init
         working-directory: terraform
         run: tofu init
 
-      - name: Terraform Destroy Plan
-        working-directory: terraform
-        run: tofu plan -destroy -out=destroy.tfplan
-
       - name: Terraform Destroy
         working-directory: terraform
-        run: tofu apply -auto-approve destroy.tfplan
+        run: tofu destroy -auto-approve
         continue-on-error: true
 
-      - name: Install hcloud CLI
-        run: |
-          curl -sL https://github.com/hetznercloud/cli/releases/latest/download/hcloud-linux-amd64.tar.gz | tar xz
-          sudo mv hcloud /usr/local/bin/
+      - name: Setup hcloud CLI
+        uses: ./.github/actions/setup-hcloud
 
       - name: Force Delete via Hetzner API (Fallback)
         env:
@@ -75,13 +66,14 @@ jobs:
           hcloud ssh-key delete sam 2>/dev/null && echo "SSH key deleted" || echo "No SSH key to delete"
           echo "Cleanup complete"
 
-      - name: Clear Terraform State Cache
+      - name: Save Terraform State
         uses: actions/cache/save@v4
+        if: always()
         with:
           path: |
             terraform/terraform.tfstate
             terraform/terraform.tfstate.backup
-          key: terraform-state-${{ github.repository }}-destroyed
+          key: terraform-state-${{ github.repository }}-${{ github.run_id }}
 
       - name: Destruction Summary
         run: |
@@ -89,4 +81,4 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All Hetzner resources have been deleted." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To redeploy, run the **Deploy Sam** workflow with **full** mode." >> $GITHUB_STEP_SUMMARY
+          echo "To redeploy, run the **Full Deploy Sam** workflow." >> $GITHUB_STEP_SUMMARY

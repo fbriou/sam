@@ -88,7 +88,13 @@ npm run embed-vault  # Re-embed vault files into sqlite-vec
 ## Deployment
 
 Server runs natively on NixOS (Hetzner Cloud). See `nixos/` and `terraform/` directories.
-GitHub Actions handles deployment (`.github/workflows/deploy.yml`): quick mode (~2min) or full mode (~15min).
+
+3 GitHub Actions workflows:
+- `quick-deploy.yml` — Update existing server: nixos-rebuild + app deploy (~2min). Auto-triggers on push to main.
+- `full-deploy.yml` — Fresh server from scratch: Terraform + nixos-anywhere + app deploy (~15min). Manual only.
+- `destroy.yml` — Tear down all Hetzner resources. Manual with "destroy" confirmation.
+
+Shared logic lives in composite actions under `.github/actions/` (setup-hcloud, setup-ssh, deploy-app).
 
 ## Documentation
 

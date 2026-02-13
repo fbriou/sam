@@ -23,7 +23,7 @@ Time estimate: ~15 minutes (full deploy workflow does everything).
 
 ### Option A: Run the full deploy workflow (recommended)
 
-1. Go to GitHub → Actions → **Deploy Sam** → Run workflow → select **full**
+1. Go to GitHub → Actions → **Full Deploy Sam** → Run workflow
 2. Wait ~15 minutes
 3. Done. The workflow creates a new server, installs NixOS, deploys the app, and assembles `.env` from secrets.
 

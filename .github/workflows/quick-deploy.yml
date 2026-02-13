@@ -1,0 +1,116 @@
+name: Quick Deploy Sam
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'runtime/**'
+      - 'nixos/**'
+      - 'flake.nix'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/quick-deploy.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: sam-deploy
+  cancel-in-progress: false
+
+jobs:
+  quick-deploy:
+    name: Quick Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup hcloud CLI
+        uses: ./.github/actions/setup-hcloud
+
+      - name: Setup SSH
+        uses: ./.github/actions/setup-ssh
+        with:
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Check Server Exists
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          SERVER_IP=$(hcloud server ip sam 2>/dev/null || echo "")
+          if [ -z "$SERVER_IP" ]; then
+            echo "::error::No server found. Run the Full Deploy workflow first to create the infrastructure."
+            exit 1
+          fi
+          echo "SERVER_IP=$SERVER_IP" >> $GITHUB_ENV
+
+          FIREWALL_ID=$(hcloud firewall describe sam -o json 2>/dev/null | jq -r '.id' || echo "")
+          echo "FIREWALL_ID=$FIREWALL_ID" >> $GITHUB_ENV
+          echo "Server found at $SERVER_IP (firewall: $FIREWALL_ID)"
+
+      - name: Allow GitHub Runner SSH Access
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "GitHub Runner IP: $RUNNER_IP"
+          hcloud firewall add-rule $FIREWALL_ID \
+            --direction in \
+            --protocol tcp \
+            --port 22 \
+            --source-ips "$RUNNER_IP/32" \
+            --description "Temporary: GitHub Actions quick deploy" || true
+          echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
+
+      - name: Update NixOS Configuration
+        run: |
+          SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+          sed -i 's|openssh.authorizedKeys.keys = \[|openssh.authorizedKeys.keys = [ "'"${{ secrets.SSH_PUBLIC_KEY }}"'" |' nixos/configuration.nix
+
+          echo "Copying NixOS configuration..."
+          ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /etc/nixos/nixos"
+          scp $SSH_OPTS flake.nix root@$SERVER_IP:/etc/nixos/
+          scp $SSH_OPTS -r nixos/* root@$SERVER_IP:/etc/nixos/nixos/
+
+          echo "Running nixos-rebuild switch..."
+          ssh $SSH_OPTS root@$SERVER_IP "cd /etc/nixos && nixos-rebuild switch --flake .#sam"
+
+      - name: Deploy Application
+        uses: ./.github/actions/deploy-app
+        with:
+          server_ip: ${{ env.SERVER_IP }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram_allowed_ids: ${{ secrets.TELEGRAM_ALLOWED_IDS }}
+          telegram_chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
+          rclone_config: ${{ secrets.RCLONE_CONFIG }}
+
+      - name: Health Check
+        run: |
+          SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          sleep 5
+          ssh $SSH_OPTS root@$SERVER_IP "systemctl is-active sam" && echo "Sam is running" || echo "::warning::Sam service is not active"
+          ssh $SSH_OPTS root@$SERVER_IP "journalctl -u sam --no-pager -n 5 2>/dev/null" || true
+
+      - name: Remove Temporary Firewall Rule
+        if: always()
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          if [ -n "$RUNNER_IP" ] && [ -n "$FIREWALL_ID" ]; then
+            hcloud firewall delete-rule $FIREWALL_ID \
+              --direction in \
+              --protocol tcp \
+              --port 22 \
+              --source-ips "$RUNNER_IP/32" || true
+          fi
+
+      - name: Deploy Summary
+        run: |
+          echo "## Quick Deploy Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Server IP:** \`$SERVER_IP\`" >> $GITHUB_STEP_SUMMARY
+          echo "**SSH:** \`ssh root@$SERVER_IP\`" >> $GITHUB_STEP_SUMMARY

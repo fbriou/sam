@@ -1,0 +1,17 @@
+name: Setup SSH
+description: Configure SSH key for server access
+
+inputs:
+  ssh_private_key:
+    description: SSH private key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Setup SSH Key
+      shell: bash
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
