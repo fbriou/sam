@@ -11,12 +11,9 @@ runs:
   steps:
     - name: Setup SSH Key
       shell: bash
-      env:
-        SSH_PRIVATE_KEY: ${{ inputs.ssh_private_key }}
       run: |
         mkdir -p ~/.ssh
-        # Use env var (not direct ${{ }} interpolation) to avoid shell mangling of multi-line secrets
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+        echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
         # Diagnostic: show key file info
         echo "Key file size: $(wc -c < ~/.ssh/id_ed25519) bytes"
