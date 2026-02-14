@@ -11,10 +11,17 @@ runs:
   steps:
     - name: Setup SSH Key
       shell: bash
+      env:
+        SSH_PRIVATE_KEY: ${{ inputs.ssh_private_key }}
       run: |
         mkdir -p ~/.ssh
-        # Write key, strip carriage returns, ensure trailing newline
-        printf '%s\n' "${{ inputs.ssh_private_key }}" | tr -d '\r' > ~/.ssh/id_ed25519
+        # Use env var (not direct ${{ }} interpolation) to avoid shell mangling of multi-line secrets
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
+        # Diagnostic: show key file info
+        echo "Key file size: $(wc -c < ~/.ssh/id_ed25519) bytes"
+        echo "Key file lines: $(wc -l < ~/.ssh/id_ed25519)"
+        head -1 ~/.ssh/id_ed25519
+        tail -1 ~/.ssh/id_ed25519
         # Verify key is loadable
         ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null 2>&1 && echo "SSH key verified OK" || echo "::warning::SSH key format issue detected"
