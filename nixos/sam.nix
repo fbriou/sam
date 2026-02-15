@@ -8,7 +8,7 @@
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
 
-    path = [ pkgs.nodejs_22 pkgs.git pkgs.ripgrep ];
+    path = [ pkgs.nodejs_22 pkgs.git pkgs.ripgrep pkgs.bash "/usr/local" ];
     environment = {
       HOME = "/var/lib/sam";
       NODE_ENV = "production";
