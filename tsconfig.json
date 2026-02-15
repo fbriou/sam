@@ -14,5 +14,5 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "openclaw"]
+  "exclude": ["node_modules", "dist", "openclaw", "src/**/*.test.ts", "vitest.config.ts"]
 }
