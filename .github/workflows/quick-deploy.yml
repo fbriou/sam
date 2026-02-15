@@ -65,10 +65,22 @@ jobs:
           echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
 
       - name: Update NixOS Configuration
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
         run: |
           SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
-          sed -i 's|openssh.authorizedKeys.keys = \[|openssh.authorizedKeys.keys = [ "'"${{ secrets.SSH_PUBLIC_KEY }}"'" |' nixos/configuration.nix
+          python3 -c "
+          import os
+          key = os.environ['SSH_PUBLIC_KEY'].strip()
+          with open('nixos/configuration.nix') as f: c = f.read()
+          c = c.replace(
+              'openssh.authorizedKeys.keys = [\\n      # SSH public key injected by GitHub Actions during deployment\\n    ];',
+              'openssh.authorizedKeys.keys = [ \"' + key + '\" ];'
+          )
+          with open('nixos/configuration.nix', 'w') as f: f.write(c)
+          "
+          grep -q "ssh-" nixos/configuration.nix || { echo "::error::SSH key injection failed"; exit 1; }
 
           echo "Copying NixOS configuration..."
           ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /etc/nixos/nixos"
