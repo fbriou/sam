@@ -5,7 +5,7 @@
 - **Node.js 22+**: `node -v` should show v22.x or later
 - **Claude Code CLI**: `npm install -g @anthropic-ai/claude-code`
 - **Telegram Bot**: Created via @BotFather (see [telegram-bot.md](telegram-bot.md))
-- **Anthropic API Key**: From [console.anthropic.com](https://console.anthropic.com) (for heartbeat + embeddings)
+- **Anthropic API Key or Claude subscription**: API key from [console.anthropic.com](https://console.anthropic.com), or log in via `claude auth login` to use your Pro/Max subscription
 
 ## Quick Start
 
@@ -30,11 +30,16 @@ cp .env.example .env
 
 Fill in the required values:
 ```
-ANTHROPIC_API_KEY=sk-ant-api03-...
+ANTHROPIC_API_KEY=sk-ant-api03-...    # Optional if using Claude subscription
 TELEGRAM_BOT_TOKEN=7123456:ABC...
 TELEGRAM_ALLOWED_IDS=123456789
 TELEGRAM_CHAT_ID=123456789
 WEBHOOK_SECRET=any-random-string-here
+```
+
+If you have a Claude Pro/Max subscription, you can skip `ANTHROPIC_API_KEY` and authenticate via:
+```bash
+claude auth login
 ```
 
 ### 4. Set up the vault
@@ -86,7 +91,9 @@ Send a message to your bot on Telegram. You should get a response within 10 seco
 
 ## Troubleshooting
 
-**"ANTHROPIC_API_KEY is required"**: Make sure `.env` exists and has the key set.
+**"ANTHROPIC_API_KEY is required"**: Make sure `.env` exists and has the key set, or authenticate via `claude auth login` for subscription-based auth.
+
+**"Credit balance is too low"**: Your API credits are depleted. Either add credits at [console.anthropic.com](https://console.anthropic.com) or switch to subscription auth via `claude auth login`.
 
 **"TELEGRAM_BOT_TOKEN is required"**: Create a bot via @BotFather and add the token.
 

@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Deployment Fixes + OAuth Token Support (2026-02-15)
+
+- **Fixed**: SSH key injection — replaced fragile `sed` with Python to avoid shell escaping issues
+- **Fixed**: `scp -r runtime/` failure — copy files individually, recreate symlink on server (skills → vault)
+- **Fixed**: `npm install -g` on NixOS — use `NPM_CONFIG_PREFIX=/usr/local` for writable location
+- **Fixed**: `claude` CLI not in systemd PATH — added `/usr/local` and `bash` to service path in `sam.nix`
+- **Added**: nixos-anywhere retry (2 attempts with 60s wait) for transient connection resets after kexec
+- **Added**: `CLAUDE_CODE_OAUTH_TOKEN` support — use Claude Pro/Max subscription instead of API key
+- **Updated**: `deploy-app` action — `anthropic_api_key` is now optional, accepts `claude_code_oauth_token`
+- **Updated**: Both workflows pass `CLAUDE_CODE_OAUTH_TOKEN` secret to deploy action
+- **Updated**: `docs/setup/vps-deploy.md` — Added Claude auth section with `setup-token` instructions
+- **Updated**: `docs/setup/local-dev.md` — Documented subscription-based auth as alternative to API key
+- **Removed**: SSH key diagnostics from `full-deploy.yml` (no longer needed after key was regenerated)
+
 ### Split Deployment into 3 Workflows (2026-02-13)
 
 - **Added**: `quick-deploy.yml` — Fast deploy to existing server (auto-triggers on push to main)

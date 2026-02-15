@@ -38,7 +38,8 @@ Add these at: repo → Settings → Secrets and variables → Actions → New re
 | `SSH_PRIVATE_KEY` | Ed25519 private key | `cat ~/.ssh/id_ed25519` (or generate: `ssh-keygen -t ed25519`) |
 | `SSH_PUBLIC_KEY` | Ed25519 public key | `cat ~/.ssh/id_ed25519.pub` |
 | `ALLOWED_SSH_IP` | Your public IP in CIDR format | `curl -s https://api.ipify.org` then append `/32` (e.g. `86.123.45.67/32`) |
-| `ANTHROPIC_API_KEY` | Anthropic API key | From your `.env` or [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| `ANTHROPIC_API_KEY` | Anthropic API key (optional if using OAuth) | From your `.env` or [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code OAuth token (optional, alternative to API key) | Generated via `claude setup-token` on the server (see below) |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token | From your `.env` (created via @BotFather) |
 | `TELEGRAM_ALLOWED_IDS` | Comma-separated Telegram user IDs | From your `.env` (get IDs via @userinfobot) |
 | `TELEGRAM_CHAT_ID` | Chat ID for heartbeat delivery | From your `.env` (usually same as your user ID) |
@@ -79,6 +80,32 @@ Go to repo → Settings → Environments → New environment → name: `producti
 ### 6. Run full deploy
 
 Go to GitHub → Actions → **Full Deploy Sam** → Run workflow.
+
+### 7. Set up Claude Code authentication
+
+Sam uses the Claude Agent SDK which spawns the `claude` CLI. You have two auth options:
+
+**Option A: API key** (pay-per-use)
+
+Set `ANTHROPIC_API_KEY` in GitHub Secrets. The deploy action includes it in the server's `.env` file automatically.
+
+**Option B: Claude subscription** (Pro/Max, recommended)
+
+Use `claude setup-token` to generate a long-lived OAuth token, then store it as a GitHub secret:
+
+```bash
+# SSH into the server
+ssh -i ~/.ssh/sam root@<server-ip>
+
+# Run setup-token as the sam user
+HOME=/var/lib/sam PATH=/usr/local/bin:$PATH sudo -u sam claude setup-token
+
+# Follow the prompts — you'll get a token to store securely
+```
+
+Copy the generated token and add it as `CLAUDE_CODE_OAUTH_TOKEN` in GitHub Secrets. Future deploys will include it in the `.env` file automatically.
+
+You can use both — if `ANTHROPIC_API_KEY` is set, it takes priority. If it's empty or has no credits, the OAuth token is used as fallback.
 
 ## Day-to-Day Operations
 
