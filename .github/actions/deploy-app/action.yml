@@ -58,7 +58,10 @@ runs:
 
         scp $SSH_OPTS -r dist root@$SERVER_IP:/var/lib/sam/app/
         scp $SSH_OPTS package.json package-lock.json root@$SERVER_IP:/var/lib/sam/app/
-        scp $SSH_OPTS -r runtime root@$SERVER_IP:/var/lib/sam/app/
+        # Copy runtime files individually (runtime/.claude/skills is a symlink that can't be scp'd)
+        scp $SSH_OPTS runtime/CLAUDE.md root@$SERVER_IP:/var/lib/sam/app/runtime/
+        scp $SSH_OPTS runtime/.claude/settings.json root@$SERVER_IP:/var/lib/sam/app/runtime/.claude/
+        ssh $SSH_OPTS root@$SERVER_IP "ln -sfn /var/lib/sam/vault/skills /var/lib/sam/app/runtime/.claude/skills"
 
         echo "Installing production dependencies..."
         ssh $SSH_OPTS root@$SERVER_IP "cd /var/lib/sam/app && npm ci --production"
