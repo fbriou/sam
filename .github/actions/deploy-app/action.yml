@@ -67,7 +67,7 @@ runs:
         ssh $SSH_OPTS root@$SERVER_IP "cd /var/lib/sam/app && npm ci --production"
 
         echo "Installing Claude Code CLI..."
-        ssh $SSH_OPTS root@$SERVER_IP "npm install -g @anthropic-ai/claude-code"
+        ssh $SSH_OPTS root@$SERVER_IP "NPM_CONFIG_PREFIX=/usr/local npm install -g @anthropic-ai/claude-code"
 
         ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/app"
 
