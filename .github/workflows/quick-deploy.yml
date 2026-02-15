@@ -95,6 +95,7 @@ jobs:
         with:
           server_ip: ${{ env.SERVER_IP }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           telegram_allowed_ids: ${{ secrets.TELEGRAM_ALLOWED_IDS }}
           telegram_chat_id: ${{ secrets.TELEGRAM_CHAT_ID }}
