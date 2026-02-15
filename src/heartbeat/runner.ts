@@ -1,10 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { CronJob } from "cron";
 import { Bot } from "grammy";
 import { createHash } from "crypto";
 import type { Database } from "better-sqlite3";
 import type { Config } from "../config.js";
 import { readVaultFile } from "../memory/vault.js";
+import { simpleQuery } from "../claude/client.js";
 
 const HEARTBEAT_PROMPT = `You are a proactive personal assistant. Below is a checklist of things to check.
 Review each item and report only if there's something actionable or noteworthy.
@@ -78,7 +78,7 @@ function logHeartbeat(
  * Every 30 minutes (configurable), this:
  * 1. Checks if within active hours
  * 2. Reads heartbeat.md from the vault
- * 3. Sends the checklist to Claude Haiku via the Anthropic SDK
+ * 3. Sends the checklist to Claude via the Agent SDK
  * 4. If the response is NOT "HEARTBEAT_OK", sends it to your Telegram chat
  * 5. Deduplicates responses within a 24h window
  */
@@ -87,8 +87,6 @@ export function startHeartbeat(
   db: Database,
   bot: Bot
 ): CronJob {
-  const anthropic = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
-
   const job = new CronJob(
     config.HEARTBEAT_INTERVAL_CRON,
     async () => {
@@ -108,20 +106,9 @@ export function startHeartbeat(
 
         console.log("[heartbeat] Running heartbeat check...");
 
-        // Call Claude Haiku (cheap, fast)
-        const response = await anthropic.messages.create({
+        const text = await simpleQuery(HEARTBEAT_PROMPT + checklist, {
           model: config.HEARTBEAT_MODEL,
-          max_tokens: 1024,
-          messages: [
-            {
-              role: "user",
-              content: HEARTBEAT_PROMPT + checklist,
-            },
-          ],
         });
-
-        const text =
-          response.content[0].type === "text" ? response.content[0].text : "";
 
         // Check if nothing to report
         if (text.includes("HEARTBEAT_OK")) {

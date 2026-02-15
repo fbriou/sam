@@ -4,8 +4,9 @@ import { z } from "zod";
 dotenvConfig();
 
 const envSchema = z.object({
-  // Anthropic API (for heartbeat + VPS Claude Code)
-  ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
+  // Anthropic API (optional if using CLAUDE_CODE_OAUTH_TOKEN)
+  ANTHROPIC_API_KEY: z.string().optional().default(""),
+  CLAUDE_CODE_OAUTH_TOKEN: z.string().optional().default(""),
 
   // Telegram
   TELEGRAM_BOT_TOKEN: z.string().min(1, "TELEGRAM_BOT_TOKEN is required"),

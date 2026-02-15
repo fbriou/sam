@@ -1,10 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { writeFileSync, existsSync, mkdirSync, appendFileSync } from "fs";
 import { join, dirname } from "path";
 import type { Database } from "better-sqlite3";
 import type { Config } from "../config.js";
 import { chunkVaultFile } from "./vault.js";
 import { embedAndStoreChunks } from "./rag.js";
+import { simpleQuery } from "../claude/client.js";
 
 const SUMMARIZE_PROMPT = `You are summarizing a conversation for a personal assistant's memory.
 Extract the key information:
@@ -67,39 +67,27 @@ export function getUnsummarizedMessages(
 /**
  * Summarize a batch of messages and save to the vault as a daily memory file.
  *
- * Uses Haiku for cost efficiency. The summary is:
+ * Uses the Agent SDK for summarization. The summary is:
  * 1. Appended to vault/memories/YYYY-MM-DD.md
- * 2. Chunked and embedded into sqlite-vec for RAG
+ * 2. Chunked and embedded into sqlite-vec for RAG (if ANTHROPIC_API_KEY is set for Voyage API)
  */
 export async function summarizeAndSave(
   config: Config,
   db: Database,
   messages: Array<{ role: string; content: string; created_at: string }>
 ): Promise<void> {
-  const anthropic = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
-
   // Format conversation for the prompt
   const conversation = messages
     .map((m) => `[${m.created_at}] ${m.role}: ${m.content}`)
     .join("\n\n");
 
   console.log(
-    `[summarizer] Summarizing ${messages.length} messages with Haiku...`
+    `[summarizer] Summarizing ${messages.length} messages...`
   );
 
-  const response = await anthropic.messages.create({
-    model: config.HEARTBEAT_MODEL, // Haiku — cheap
-    max_tokens: 1024,
-    messages: [
-      {
-        role: "user",
-        content: SUMMARIZE_PROMPT + conversation,
-      },
-    ],
+  const summary = await simpleQuery(SUMMARIZE_PROMPT + conversation, {
+    model: config.HEARTBEAT_MODEL,
   });
-
-  const summary =
-    response.content[0].type === "text" ? response.content[0].text : "";
 
   if (!summary.trim()) {
     console.log("[summarizer] Empty summary, skipping");
@@ -133,13 +121,17 @@ export async function summarizeAndSave(
 
   console.log(`[summarizer] Saved summary to ${memoryFile}`);
 
-  // Re-embed the memory file into sqlite-vec
-  const chunks = chunkVaultFile(config.VAULT_PATH, memoryFile);
-  if (chunks.length > 0) {
-    await embedAndStoreChunks(db, chunks);
-    console.log(
-      `[summarizer] Embedded ${chunks.length} chunks from ${memoryFile}`
-    );
+  // Re-embed the memory file into sqlite-vec (requires ANTHROPIC_API_KEY for Voyage API)
+  if (config.ANTHROPIC_API_KEY) {
+    const chunks = chunkVaultFile(config.VAULT_PATH, memoryFile);
+    if (chunks.length > 0) {
+      await embedAndStoreChunks(db, chunks);
+      console.log(
+        `[summarizer] Embedded ${chunks.length} chunks from ${memoryFile}`
+      );
+    }
+  } else {
+    console.log("[summarizer] Skipping embedding (no ANTHROPIC_API_KEY for Voyage API)");
   }
 }
 

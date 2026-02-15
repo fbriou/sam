@@ -13,6 +13,34 @@ const runtimeDir = join(process.cwd(), "runtime");
 const samPrompt = readFileSync(join(runtimeDir, "CLAUDE.md"), "utf-8");
 
 /**
+ * Lightweight query for simple tasks (heartbeat, summarization).
+ * No MCP servers, no tools, no session resume — just a prompt and a response.
+ */
+export async function simpleQuery(
+  prompt: string,
+  opts: { model?: string } = {}
+): Promise<string> {
+  let text = "";
+
+  const q = query({
+    prompt,
+    options: {
+      maxTurns: 1,
+      permissionMode: "dontAsk",
+      ...(opts.model ? { model: opts.model } : {}),
+    },
+  });
+
+  for await (const msg of q) {
+    if (msg.type === "result" && msg.subtype === "success") {
+      text = (msg as SDKResultSuccess).result;
+    }
+  }
+
+  return text;
+}
+
+/**
  * Ask Claude via the Agent SDK.
  *
  * - systemPrompt: Sam personality loaded directly (avoids CLAUDE.md hierarchy issues)
