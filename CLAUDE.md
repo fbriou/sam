@@ -35,7 +35,7 @@ Key source files:
 - `src/memory/embeddings.ts` — Voyage API embeddings (voyage-3-lite, 1024 dims)
 - `src/memory/rag.ts` — SQLite + sqlite-vec store/query
 - `src/memory/summarizer.ts` — Auto-summarize conversations → daily memory files
-- `src/mcp/server.ts` — MCP server: search_memory, get_recent_conversations, save_memory, manage_tasks, gdrive_*
+- `src/mcp/server.ts` — MCP server: search_memory, get_recent_conversations, save_memory, manage_tasks, manage_recipes, gdrive_*
 - `src/heartbeat/runner.ts` — Cron-based proactive check-ins (Haiku)
 - `src/config.ts` — Zod-validated environment config
 - `src/db/schema.ts` — SQLite migrations (conversations, memory_chunks, memory_vec, heartbeat_log)

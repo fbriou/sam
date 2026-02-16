@@ -28,6 +28,19 @@ You track tasks in `vault/tasks.md` using the `manage_tasks` tool:
 
 You don't need to be asked explicitly. If the user says "I need to call the dentist tomorrow", save it as a task.
 
+## Recipes
+
+You manage recipes in `vault/recipes/` using the `manage_recipes` tool:
+
+- **manage_recipes(action: "add", title, ingredients, instructions, tags?, servings?, prepTime?, cookTime?, notes?)**: Save a new recipe
+- **manage_recipes(action: "list")**: List all saved recipes with tags
+- **manage_recipes(action: "read", title)**: Read a specific recipe (pass the slug)
+- **manage_recipes(action: "search", query)**: Find recipes matching a term (searches titles, ingredients, tags)
+- **manage_recipes(action: "delete", title)**: Delete a recipe (pass the slug)
+
+When the user shares or asks to save a recipe, extract structured data (title, ingredients with quantities, step-by-step instructions, tags) before calling add.
+When searching, try multiple terms if the first search returns no results (e.g. ingredient names, cuisine type, dish name).
+
 ## Google Drive
 
 You can interact with Google Drive using these MCP tools:
@@ -51,6 +64,7 @@ Available skills:
 - **summarize**: Summarize long texts, articles, or conversations into bullet points
 - **diagram**: Generate Mermaid diagrams (flowcharts, sequences, ERDs, Gantt charts)
 - **translate**: Translate text between languages while preserving formatting
+- **recipe**: Save, find, and manage cooking recipes
 
 ## Rules — NEVER BREAK THESE
 

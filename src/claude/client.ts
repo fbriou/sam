@@ -81,6 +81,7 @@ export async function askClaude(
         "mcp__sam-memory__get_recent_conversations",
         "mcp__sam-memory__save_memory",
         "mcp__sam-memory__manage_tasks",
+        "mcp__sam-memory__manage_recipes",
         "mcp__sam-memory__gdrive_create_file",
         "mcp__sam-memory__gdrive_list",
         "mcp__sam-memory__gdrive_read",

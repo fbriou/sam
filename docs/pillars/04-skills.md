@@ -37,6 +37,7 @@ Include rules, formatting preferences, and examples.
 | summarize | `vault/skills/summarize.md` | Summarize texts into bullet points |
 | diagram | `vault/skills/diagram.md` | Generate Mermaid diagrams |
 | translate | `vault/skills/translate.md` | Translate between languages |
+| recipe | `vault/skills/recipe.md` | Save, find, and manage cooking recipes |
 
 ## Adding a New Skill
 

@@ -6,7 +6,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync, mkdirSync } from "fs";
+import matter from "gray-matter";
 import { execSync } from "child_process";
 import { join } from "path";
 import { searchMemory } from "../memory/rag.js";
@@ -211,6 +212,66 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["path"],
+        },
+      },
+      {
+        name: "manage_recipes",
+        description:
+          "Add, list, read, search, or delete recipes. Recipes are stored in vault/recipes/ as markdown files. " +
+          "Use this when the user wants to save a recipe, find a recipe, or view recipe details.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: {
+              type: "string",
+              enum: ["add", "list", "read", "search", "delete"],
+              description:
+                "The action: add a new recipe, list all recipes, read a specific recipe, search recipes, or delete a recipe",
+            },
+            title: {
+              type: "string",
+              description:
+                "For 'add': recipe name. For 'read'/'delete': filename slug (without .md).",
+            },
+            ingredients: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "For 'add': list of ingredients with quantities (e.g. ['400g pasta', '2 cloves garlic'])",
+            },
+            instructions: {
+              type: "string",
+              description: "For 'add': step-by-step cooking instructions (markdown)",
+            },
+            servings: {
+              type: "number",
+              description: "For 'add': number of servings (optional)",
+            },
+            prepTime: {
+              type: "string",
+              description: "For 'add': prep time (e.g. '15 min', optional)",
+            },
+            cookTime: {
+              type: "string",
+              description: "For 'add': cook time (e.g. '30 min', optional)",
+            },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "For 'add': categories (e.g. ['italian', 'pasta', 'vegetarian'], optional)",
+            },
+            notes: {
+              type: "string",
+              description: "For 'add': additional notes (optional)",
+            },
+            query: {
+              type: "string",
+              description:
+                "For 'search': text to match against recipe titles, ingredients, and tags",
+            },
+          },
+          required: ["action"],
         },
       },
     ],
@@ -425,6 +486,300 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ],
             };
           }
+          default:
+            return {
+              content: [{ type: "text", text: `Unknown task action: ${action}` }],
+              isError: true,
+            };
+        }
+        break;
+      }
+
+      case "manage_recipes": {
+        const {
+          action,
+          title,
+          ingredients,
+          instructions,
+          servings,
+          prepTime,
+          cookTime,
+          tags,
+          notes,
+          query: searchQuery,
+        } = request.params.arguments as {
+          action: "add" | "list" | "read" | "search" | "delete";
+          title?: string;
+          ingredients?: string[];
+          instructions?: string;
+          servings?: number;
+          prepTime?: string;
+          cookTime?: string;
+          tags?: string[];
+          notes?: string;
+          query?: string;
+        };
+
+        const recipesDir = join(VAULT_PATH, "recipes");
+        if (!existsSync(recipesDir)) {
+          mkdirSync(recipesDir, { recursive: true });
+        }
+
+        switch (action) {
+          case "add": {
+            if (!title || !ingredients || !instructions) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: "Error: 'title', 'ingredients', and 'instructions' are required.",
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            const slug = title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-|-$/g, "");
+
+            if (!slug) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: "Error: title must contain at least one letter or number.",
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            const filePath = join(recipesDir, `${slug}.md`);
+
+            if (existsSync(filePath)) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: `Recipe "${title}" already exists. Delete it first to replace.`,
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            // Build frontmatter object
+            const fm: Record<string, unknown> = { title };
+            if (servings) fm.servings = servings;
+            if (prepTime) fm.prepTime = prepTime;
+            if (cookTime) fm.cookTime = cookTime;
+            if (tags && tags.length > 0) fm.tags = tags;
+            fm.ingredients = ingredients;
+
+            const body =
+              "## Instructions\n\n" +
+              instructions +
+              (notes ? "\n\n## Notes\n\n" + notes : "") +
+              "\n";
+
+            const content = matter.stringify(body, fm);
+            writeFileSync(filePath, content, "utf-8");
+
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Recipe "${title}" saved to recipes/${slug}.md`,
+                },
+              ],
+            };
+          }
+
+          case "list": {
+            const files = existsSync(recipesDir)
+              ? readdirSync(recipesDir).filter((f) => f.endsWith(".md"))
+              : [];
+
+            if (files.length === 0) {
+              return {
+                content: [{ type: "text", text: "No recipes found." }],
+              };
+            }
+
+            const recipes = files.map((f) => {
+              const raw = readFileSync(join(recipesDir, f), "utf-8");
+              const parsed = matter(raw);
+              return {
+                slug: f.replace(".md", ""),
+                title: (parsed.data.title as string) || f.replace(".md", ""),
+                tags: (parsed.data.tags as string[]) || [],
+              };
+            });
+
+            const formatted = recipes
+              .map(
+                (r) =>
+                  `- **${r.title}** (${r.slug})${r.tags.length > 0 ? ` — ${r.tags.join(", ")}` : ""}`
+              )
+              .join("\n");
+
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Recipes (${recipes.length}):\n\n${formatted}`,
+                },
+              ],
+            };
+          }
+
+          case "read": {
+            if (!title) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: "Error: 'title' (slug) is required to read a recipe.",
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            const filePath = join(recipesDir, `${title}.md`);
+            if (!existsSync(filePath)) {
+              return {
+                content: [
+                  { type: "text", text: `Recipe "${title}" not found.` },
+                ],
+                isError: true,
+              };
+            }
+
+            return {
+              content: [
+                { type: "text", text: readFileSync(filePath, "utf-8") },
+              ],
+            };
+          }
+
+          case "search": {
+            if (!searchQuery) {
+              return {
+                content: [
+                  { type: "text", text: "Error: 'query' is required for search." },
+                ],
+                isError: true,
+              };
+            }
+
+            const files = existsSync(recipesDir)
+              ? readdirSync(recipesDir).filter((f) => f.endsWith(".md"))
+              : [];
+
+            if (files.length === 0) {
+              return {
+                content: [{ type: "text", text: "No recipes to search." }],
+              };
+            }
+
+            const q = searchQuery.toLowerCase();
+            const matches: Array<{
+              slug: string;
+              title: string;
+              score: number;
+            }> = [];
+
+            for (const file of files) {
+              const raw = readFileSync(join(recipesDir, file), "utf-8");
+              const parsed = matter(raw);
+              const recipeTitle = ((parsed.data.title as string) || "").toLowerCase();
+              const ingredientText = ((parsed.data.ingredients as string[]) || [])
+                .join(" ")
+                .toLowerCase();
+              const tagText = ((parsed.data.tags as string[]) || [])
+                .join(" ")
+                .toLowerCase();
+              const bodyText = parsed.content.toLowerCase();
+
+              let score = 0;
+              if (recipeTitle.includes(q)) score += 50;
+              if (ingredientText.includes(q)) score += 30;
+              if (tagText.includes(q)) score += 20;
+              if (bodyText.includes(q)) score += 10;
+
+              if (score > 0) {
+                matches.push({
+                  slug: file.replace(".md", ""),
+                  title: (parsed.data.title as string) || file.replace(".md", ""),
+                  score,
+                });
+              }
+            }
+
+            if (matches.length === 0) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: `No recipes found matching "${searchQuery}".`,
+                  },
+                ],
+              };
+            }
+
+            matches.sort((a, b) => b.score - a.score);
+            const formatted = matches
+              .map((m) => `- **${m.title}** (${m.slug})`)
+              .join("\n");
+
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Found ${matches.length} recipe(s) matching "${searchQuery}":\n\n${formatted}`,
+                },
+              ],
+            };
+          }
+
+          case "delete": {
+            if (!title) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: "Error: 'title' (slug) is required to delete a recipe.",
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            const filePath = join(recipesDir, `${title}.md`);
+            if (!existsSync(filePath)) {
+              return {
+                content: [
+                  { type: "text", text: `Recipe "${title}" not found.` },
+                ],
+                isError: true,
+              };
+            }
+
+            unlinkSync(filePath);
+            return {
+              content: [
+                { type: "text", text: `Recipe "${title}" deleted.` },
+              ],
+            };
+          }
+          default:
+            return {
+              content: [{ type: "text", text: `Unknown recipe action: ${action}` }],
+              isError: true,
+            };
         }
         break;
       }
