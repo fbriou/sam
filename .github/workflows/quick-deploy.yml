@@ -64,6 +64,18 @@ jobs:
             --description "Temporary: GitHub Actions quick deploy" || true
           echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
 
+      - name: Deploy rclone Config (pre-rebuild)
+        run: |
+          SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          if [ -n "${{ secrets.RCLONE_CONFIG }}" ]; then
+            echo "Deploying rclone config before NixOS rebuild..."
+            ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/.config/rclone"
+            printf '%s' "${{ secrets.RCLONE_CONFIG }}" > /tmp/rclone.conf
+            scp $SSH_OPTS /tmp/rclone.conf root@$SERVER_IP:/var/lib/sam/.config/rclone/rclone.conf
+            ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/.config && chmod 600 /var/lib/sam/.config/rclone/rclone.conf"
+            rm -f /tmp/rclone.conf
+          fi
+
       - name: Update NixOS Configuration
         env:
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}

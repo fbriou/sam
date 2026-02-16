@@ -201,6 +201,19 @@ jobs:
             sleep 10
           done
 
+      - name: Deploy rclone Config (pre-app)
+        run: |
+          SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          SERVER_IP="${{ steps.server.outputs.ip }}"
+          if [ -n "${{ secrets.RCLONE_CONFIG }}" ]; then
+            echo "Deploying rclone config before app deploy..."
+            ssh $SSH_OPTS root@$SERVER_IP "mkdir -p /var/lib/sam/.config/rclone"
+            printf '%s' "${{ secrets.RCLONE_CONFIG }}" > /tmp/rclone.conf
+            scp $SSH_OPTS /tmp/rclone.conf root@$SERVER_IP:/var/lib/sam/.config/rclone/rclone.conf
+            ssh $SSH_OPTS root@$SERVER_IP "chown -R sam:sam /var/lib/sam/.config && chmod 600 /var/lib/sam/.config/rclone/rclone.conf"
+            rm -f /tmp/rclone.conf
+          fi
+
       - name: Deploy Application
         uses: ./.github/actions/deploy-app
         with:
