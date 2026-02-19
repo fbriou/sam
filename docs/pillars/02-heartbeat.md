@@ -20,14 +20,13 @@ Cron fires (*/30 * * * *)
        → Duplicate → skip
 ```
 
-## Why Haiku (not Claude Code CLI)
+## Why Haiku (via simpleQuery)
 
-The heartbeat uses `@anthropic-ai/sdk` directly with the Haiku model instead of `claude -p` because:
+The heartbeat uses `simpleQuery()` from `src/claude/client.ts`, which wraps the Agent SDK `query()` with `maxTurns: 1` and no MCP tools. It uses the Haiku model because:
 
 1. **Cost**: Haiku is ~20x cheaper than Sonnet — heartbeats are routine checks
-2. **Rate limits**: Doesn't consume Claude Code subscription limits
-3. **Simplicity**: One-shot prompt, no session needed, no MCP tools
-4. **Speed**: Direct API call is faster than spawning a CLI process
+2. **Simplicity**: One-shot prompt, no session needed, no MCP tools — `simpleQuery()` is purpose-built for this
+3. **Speed**: Single-turn Agent SDK call with no tool overhead
 
 ## Configuration
 
@@ -66,7 +65,7 @@ Each heartbeat response is hashed (SHA-256). If the same hash appears in the `he
 
 | File | Purpose |
 |------|---------|
-| `src/heartbeat/runner.ts` | Cron job, active hours check, Haiku API call, Telegram delivery |
+| `src/heartbeat/runner.ts` | Cron job, active hours check, Agent SDK `simpleQuery()`, Telegram delivery |
 | `vault/heartbeat.md` | Your checklist (edit in Obsidian) |
 | `src/db/schema.ts` | `heartbeat_log` table for duplicate tracking |
 

@@ -58,10 +58,10 @@ Vectors are stored in SQLite using the `sqlite-vec` extension:
 
 ### 4. Retrieval (MCP Server — `src/mcp/server.ts`)
 
-When Claude Code calls `search_memory(query)`:
+When Claude calls `search_memory(query)`:
 1. The query is embedded with `input_type: "query"`
 2. sqlite-vec finds the top-K most similar vectors
-3. Corresponding chunk text is returned to Claude Code
+3. Corresponding chunk text is returned to Claude
 
 ## MCP Server
 

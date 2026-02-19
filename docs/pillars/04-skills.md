@@ -2,15 +2,17 @@
 
 ## Overview
 
-Skills are single markdown files that define specialized capabilities for the assistant. They live in `vault/skills/` and are symlinked to `.claude/skills/` so Claude Code loads them natively.
+Skills are single markdown files that define specialized capabilities for the assistant. They live in `vault/skills/` and are loaded at runtime via `runtime/.claude/skills` (a symlink recreated on deploy).
+
+> **Note:** The root `.claude/skills` symlink was removed — it was only needed during initial setup. Skills are Sam's runtime bot instructions, not Claude Code development skills. Development slash commands live in `.claude/commands/`.
 
 ## How Skills Work
 
 1. You create a `.md` file in `vault/skills/` using Obsidian
 2. The file contains YAML frontmatter (description) and instructions
-3. It's symlinked to `.claude/skills/` which Claude Code reads
-4. When Claude Code processes a message that matches a skill's domain, it applies the instructions
-5. CLAUDE.md lists available skills so the assistant knows what's available
+3. On the VPS, `runtime/.claude/skills` symlinks to `vault/skills/` (recreated by deploy-app action)
+4. `runtime/CLAUDE.md` lists available skills so the assistant knows what's available
+5. You edit skills in Obsidian → they sync to Google Drive → rclone pulls to VPS
 
 ## Skill File Format
 
@@ -70,14 +72,15 @@ Format: Use a numbered list. Each item should have:
 - **Severity**: Low / Medium / High
 ```
 
-## How the Symlink Works
+## How the Runtime Symlink Works
+
+On the VPS, the deploy-app action creates:
 
 ```bash
-.claude/skills -> ../vault/skills
+runtime/.claude/skills -> /var/lib/sam/vault/skills
 ```
 
 This means:
-- `vault/skills/summarize.md` is accessible as `.claude/skills/summarize.md`
-- Claude Code sees it as a native skill
-- You edit skills in Obsidian (via vault/) — they sync to Google Drive — rclone pulls to VPS
-- No restart needed — Claude Code reads skills fresh on each invocation
+- `vault/skills/summarize.md` is accessible to the Agent SDK at runtime
+- You edit skills in Obsidian (via vault/) → they sync to Google Drive → rclone pulls to VPS
+- No restart needed — the Agent SDK reads skills fresh on each invocation

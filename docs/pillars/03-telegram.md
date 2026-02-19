@@ -2,12 +2,12 @@
 
 ## Overview
 
-Sam uses a single Telegram bot built with [grammY](https://grammy.dev/) as the communication channel. The bot is a thin proxy: it receives messages, spawns `claude -p`, and sends back the response.
+Sam uses a single Telegram bot built with [grammY](https://grammy.dev/) as the communication channel. The bot is a thin orchestrator: it receives messages, calls `askClaude()` via the Agent SDK, and sends back the response.
 
 ## Architecture
 
 ```
-You (Telegram) → grammY Bot → Security Middleware → Claude Code CLI → Response → Telegram
+You (Telegram) → grammY Bot → Security Middleware → Agent SDK query() → Response → Telegram
 ```
 
 ### Message Flow
@@ -17,7 +17,7 @@ You (Telegram) → grammY Bot → Security Middleware → Claude Code CLI → Re
 3. **Allow-list middleware** checks your Telegram user ID — rejects unauthorized users silently
 4. **Rate limit middleware** checks message frequency — max 10/minute
 5. Bot shows "typing" indicator
-6. `spawnClaude()` runs `claude -p "your message" --output-format json --session-id <uuid>` (deterministic UUID derived from chatId)
+6. `askClaude()` calls the Agent SDK `query()` with `runtime/CLAUDE.md` as `systemPrompt`, the MCP server, and session resume for conversation continuity
 7. Both user message and assistant response are saved to SQLite `conversations` table
 8. Response is converted from markdown to Telegram HTML
 9. If > 4096 chars, response is chunked at paragraph/sentence boundaries
@@ -30,7 +30,7 @@ You (Telegram) → grammY Bot → Security Middleware → Claude Code CLI → Re
 | `src/telegram/bot.ts` | Bot setup, middleware chain, message handler |
 | `src/telegram/security.ts` | Allow-list and rate limiting middleware |
 | `src/telegram/formatter.ts` | Markdown → Telegram HTML conversion, chunking |
-| `src/claude/client.ts` | Claude Code CLI wrapper (`claude -p`) |
+| `src/claude/client.ts` | Agent SDK wrapper (`query()` with systemPrompt, MCP, WebSearch) |
 
 ## Security
 
@@ -61,11 +61,11 @@ Claude outputs standard markdown. Telegram supports a subset of HTML:
 
 ## Session Management
 
-Each Telegram chat gets its own Claude Code session via `--session-id <uuid>`. The UUID is deterministically derived from the chat ID using MD5 hashing, ensuring:
-- The same chat always gets the same session ID
-- Conversation context persists across messages
+Each Telegram chat gets its own Agent SDK session tracked via an in-memory `Map<chatId, sessionId>`. When `askClaude()` is called:
+- The previous `sessionId` for the chat is passed as `resume` to `query()`
+- The Agent SDK resumes the conversation, preserving context across messages
+- If the session is stale (expired or corrupted), `askClaude()` retries with a fresh session
 - Different chats (e.g., private vs group) have separate sessions
-- Sessions are managed by Claude Code, not by our code
 
 ## Running
 

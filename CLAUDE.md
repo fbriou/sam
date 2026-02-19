@@ -15,9 +15,12 @@ This project has **two** contexts:
 The `runtime/` directory contains:
 - `CLAUDE.md` — Bot personality, MCP tools, skills, rules (passed directly as `systemPrompt`)
 - `.claude/settings.json` — MCP server config (legacy, not used at runtime — MCP is configured via SDK options)
-- `.claude/skills` — Symlink to `../../vault/skills`
+- `.claude/skills` — Symlink to `../../vault/skills` (recreated on deploy)
 
 The root `.claude/settings.json` is used by Claude Code IDE during development.
+The root `.claude/commands/` contains dev slash commands:
+- `/prime` — Load full project context for a new development session
+- `/doc-check` — Audit docs against source code to catch drift (run before committing)
 
 ## Architecture
 
@@ -58,14 +61,16 @@ Key source files:
 
 ## Commit Rules — ALWAYS FOLLOW
 
-Before every commit, you MUST:
+**Docs go stale fast.** The codebase was once refactored from CLI to Agent SDK while the docs still described `claude -p` and `spawnClaude()`. Don't let that happen again.
+
+Before every commit, you MUST check **all four** of these — no exceptions:
 
 1. **Update `CHANGELOG.md`** — Add an entry describing what changed
-2. **Update `CLAUDE.md`** (this file) — If architecture, files, directories, or conventions changed
-3. **Update `docs/`** — If the change affects architecture, data flow, setup, or operations
-4. **Update `runtime/CLAUDE.md`** — If the change affects bot personality, tools, skills, or response format
+2. **Review `CLAUDE.md`** (this file) — Does the architecture section, file list, or directory table still match the code? Update if not.
+3. **Review `docs/`** — Do the pillar docs, setup guides, and architecture doc still describe how the code actually works? Update if not.
+4. **Review `runtime/CLAUDE.md`** — Do the tool names, skill names, and response rules still match the implementation? Update if not.
 
-Never commit code changes without updating the relevant documentation first.
+**Never commit code changes without reviewing and updating all relevant documentation first.** If you're not sure whether a doc needs updating, read it and check.
 
 ## Coding Conventions
 

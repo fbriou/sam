@@ -69,15 +69,20 @@ export function createBot(config: Config, db: Database): Bot {
       insertStmt.run(chatId, "assistant", result.text);
 
       // Convert and send response
-      const htmlResponse = markdownToTelegramHtml(result.text);
-      const chunks = chunkText(htmlResponse, 4096);
+      if (!result.text || !result.text.trim()) {
+        console.warn("[telegram] Empty response from Claude, sending fallback");
+        await ctx.reply("Hmm, je n'ai pas réussi à formuler une réponse. Réessaie ?");
+      } else {
+        const htmlResponse = markdownToTelegramHtml(result.text);
+        const chunks = chunkText(htmlResponse, 4096);
 
-      for (const chunk of chunks) {
-        try {
-          await ctx.reply(chunk, { parse_mode: "HTML" });
-        } catch {
-          // If HTML parsing fails, send as plain text
-          await ctx.reply(chunk);
+        for (const chunk of chunks) {
+          try {
+            await ctx.reply(chunk, { parse_mode: "HTML" });
+          } catch {
+            // If HTML parsing fails, send as plain text
+            await ctx.reply(chunk);
+          }
         }
       }
 

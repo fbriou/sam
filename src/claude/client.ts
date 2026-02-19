@@ -1,7 +1,10 @@
 import { join } from "path";
 import { readFileSync } from "fs";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { SDKResultSuccess } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  SDKResultSuccess,
+  SDKResultError,
+} from "@anthropic-ai/claude-agent-sdk";
 
 export interface ClaudeResult {
   text: string;
@@ -87,7 +90,7 @@ export async function askClaude(
         "mcp__sam-memory__gdrive_read",
         "mcp__sam-memory__gdrive_delete",
       ],
-      maxTurns: 5,
+      maxTurns: 10,
       permissionMode: "dontAsk",
       ...(opts.model ? { model: opts.model } : {}),
       ...(opts.sessionId ? { resume: opts.sessionId } : {}),
@@ -100,6 +103,13 @@ export async function askClaude(
         const success = msg as SDKResultSuccess;
         text = success.result;
         resultSessionId = success.session_id;
+      } else if (msg.type === "result") {
+        const error = msg as SDKResultError;
+        console.error(
+          `[claude] SDK returned ${error.subtype} after ${error.num_turns} turns`,
+          error.errors?.length ? `— ${error.errors.join("; ")}` : ""
+        );
+        resultSessionId = error.session_id;
       }
     }
   } catch (err) {

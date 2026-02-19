@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fix empty responses + doc drift audit (2026-02-19)
+
+- **Fixed**: Empty Telegram responses — SDK `error_max_turns` results were silently ignored, causing `sendMessage` with empty text (400 error). Now logs error subtype/turn count and sends a fallback message to the user.
+- **Fixed**: `maxTurns` bumped from 5 to 10 — 5 was too tight when Claude calls memory tools before responding.
+- **Fixed**: Doc drift in `docs/pillars/02-heartbeat.md`, `03-telegram.md`, `04-skills.md`, `01-memory.md` — still referenced `claude -p`, `spawnClaude()`, `@anthropic-ai/sdk` after the Agent SDK refactor.
+- **Added**: `/doc-check` slash command — audits docs against source code to catch drift before committing.
+- **Added**: `/prime` slash command — loads full project context for new development sessions.
+- **Updated**: `CLAUDE.md` — Strengthened commit rules to mandate doc review, listed dev slash commands.
+- **Removed**: Root `.claude/skills` symlink — was only needed during initial setup, skills load via `runtime/.claude/skills` at runtime.
+
 ### Deployment Fixes + OAuth Token Support (2026-02-15)
 
 - **Fixed**: SSH key injection — replaced fragile `sed` with Python to avoid shell escaping issues
