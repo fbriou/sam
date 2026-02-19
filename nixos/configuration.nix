@@ -92,9 +92,10 @@
     rclone
   ];
 
-  # Automatic updates
+  # Automatic updates (flake-aware)
   system.autoUpgrade = {
     enable = true;
+    flake = "/etc/nixos#sam";
     allowReboot = false;
     dates = "04:00";
   };

@@ -13,6 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Added**: `/doc-check` slash command — audits docs against source code to catch drift before committing.
 - **Added**: `/prime` slash command — loads full project context for new development sessions.
 - **Updated**: `CLAUDE.md` — Strengthened commit rules to mandate doc review, listed dev slash commands.
+- **Fixed**: `system.autoUpgrade` in NixOS config — missing `flake` attribute caused `--no-build-output` error, failing `nixos-rebuild switch` and blocking CI deploys.
 - **Removed**: Root `.claude/skills` symlink — was only needed during initial setup, skills load via `runtime/.claude/skills` at runtime.
 
 ### Deployment Fixes + OAuth Token Support (2026-02-15)
